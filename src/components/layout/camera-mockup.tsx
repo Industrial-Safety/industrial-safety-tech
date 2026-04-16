@@ -26,8 +26,10 @@ const detections: BoundingBox[] = [
 export default function CameraMockup() {
   const [scanLine, setScanLine] = useState(0);
   const [currentTime, setCurrentTime] = useState(new Date());
+  const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
+    setMounted(true);
     const interval = setInterval(() => {
       setScanLine((prev) => (prev + 1) % 100);
       setCurrentTime(new Date());
@@ -38,21 +40,21 @@ export default function CameraMockup() {
   return (
     <div className="relative mx-auto w-full max-w-4xl overflow-hidden rounded-xl border border-slate-800 bg-slate-950 shadow-2xl">
       {/* Camera top bar */}
-      <div className="flex items-center justify-between border-b border-slate-800 bg-slate-900/90 px-4 py-2">
-        <div className="flex items-center gap-3">
-          <div className="flex items-center gap-2">
-            <Circle className="h-2.5 w-2.5 fill-emerald-500 text-emerald-500 animate-pulse" />
-            <span className="text-xs font-medium text-slate-300">CAM-N03 &mdash; EN VIVO</span>
+      <div className="flex items-center justify-between border-b border-slate-800 bg-slate-900/90 px-3 py-2 sm:px-4">
+        <div className="flex items-center gap-2 sm:gap-3">
+          <div className="flex items-center gap-1.5 sm:gap-2">
+            <Circle className="h-2 w-2 fill-emerald-500 text-emerald-500 animate-pulse sm:h-2.5 sm:w-2.5" />
+            <span className="text-[10px] font-medium text-slate-300 sm:text-xs">CAM-N03 &mdash; EN VIVO</span>
           </div>
-          <span className="rounded bg-slate-800 px-2 py-0.5 text-[10px] font-mono text-muted">
+          <span className="hidden rounded bg-slate-800 px-2 py-0.5 text-[10px] font-mono text-muted sm:inline">
             1920&times;1080 &bull; 30fps
           </span>
         </div>
-        <div className="flex items-center gap-4">
-          <span className="font-mono text-xs text-slate-400">
-            {currentTime.toLocaleTimeString("es-ES", { hour12: false })}
+        <div className="flex items-center gap-3 sm:gap-4">
+          <span className="font-mono text-[10px] text-slate-400 sm:text-xs">
+            {mounted ? currentTime.toLocaleTimeString("es-ES", { hour12: false }) : "--:--:--"}
           </span>
-          <Maximize2 className="h-3.5 w-3.5 text-slate-500" />
+          <Maximize2 className="h-3 w-3 text-slate-500 sm:h-3.5 sm:w-3.5" />
         </div>
       </div>
 
@@ -77,17 +79,15 @@ export default function CameraMockup() {
         }} />
 
         {/* Silhouette placeholder (human figure) */}
-        <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">
-          <div className="relative">
-            {/* Head */}
-            <div className="mx-auto h-16 w-16 rounded-full bg-slate-700/30 border border-slate-600/20" />
-            {/* Body */}
-            <div className="mx-auto -mt-2 h-32 w-24 rounded-lg bg-slate-700/20 border border-slate-600/20" />
-            {/* Legs */}
-            <div className="mt-1 flex justify-center gap-3">
-              <div className="h-20 w-8 rounded-b-lg bg-slate-700/20 border border-slate-600/20" />
-              <div className="h-20 w-8 rounded-b-lg bg-slate-700/20 border border-slate-600/20" />
-            </div>
+        <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[12%] h-[55%] flex flex-col">
+          {/* Head */}
+          <div className="mx-auto w-[65%] h-[23%] rounded-full bg-slate-700/30 border border-slate-600/20" />
+          {/* Body */}
+          <div className="mx-auto -mt-[4%] h-[50%] w-full rounded-lg bg-slate-700/20 border border-slate-600/20" />
+          {/* Legs */}
+          <div className="mx-auto mt-[2%] flex justify-center h-[29%] w-full gap-[15%]">
+            <div className="h-full w-[35%] rounded-b-lg bg-slate-700/20 border border-slate-600/20" />
+            <div className="h-full w-[35%] rounded-b-lg bg-slate-700/20 border border-slate-600/20" />
           </div>
         </div>
 
@@ -113,8 +113,8 @@ export default function CameraMockup() {
               <div className={`absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 border-b-2 border-r-2 ${borderColor}`} />
 
               {/* Label */}
-              <div className="absolute -top-7 left-0">
-                <Badge variant={badgeVariant} className="text-[10px] font-mono">
+              <div className="absolute -top-5 left-0 sm:-top-7">
+                <Badge variant={badgeVariant} className="text-[8px] font-mono whitespace-nowrap sm:text-[10px]">
                   {box.label}: {box.confidence}% &mdash; {box.status === "ok" ? "OK" : "REV"}
                 </Badge>
               </div>
@@ -129,18 +129,18 @@ export default function CameraMockup() {
         />
 
         {/* Bottom status bar */}
-        <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-slate-950/90 to-transparent px-4 pb-4 pt-12">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <Badge variant="success" className="text-[10px]">
+        <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-slate-950/90 to-transparent px-3 pb-3 pt-12 sm:px-4 sm:pb-4">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 sm:gap-0">
+            <div className="flex items-center gap-3 sm:gap-4">
+              <Badge variant="success" className="text-[8px] sm:text-[10px]">
                 EPP: COMPLETO
               </Badge>
-              <span className="text-[10px] font-mono text-slate-500">
+              <span className="text-[8px] font-mono text-slate-500 sm:text-[10px]">
                 IA v2.4.1 &bull; Confianza global: 96.8%
               </span>
             </div>
-            <span className="text-[10px] font-mono text-slate-500">
-              {currentTime.toLocaleDateString("es-ES", { day: "2-digit", month: "2-digit", year: "numeric" })}
+            <span className="text-[8px] font-mono text-slate-500 sm:text-[10px]">
+              {mounted ? currentTime.toLocaleDateString("es-ES", { day: "2-digit", month: "2-digit", year: "numeric" }) : "--/--/----"}
             </span>
           </div>
         </div>

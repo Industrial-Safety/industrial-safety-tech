@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -17,6 +18,11 @@ import {
   TrendingDown,
   FileText,
   LayoutDashboard,
+  Shield,
+  Clock,
+  GraduationCap,
+  UserCheck,
+  FileSignature,
 } from "lucide-react";
 
 const certifications = [
@@ -43,6 +49,33 @@ const certifications = [
   },
 ];
 
+const courses = [
+  {
+    title: "Prevención de Riesgos Laborales",
+    description: "Curso fundamental sobre normativas de seguridad, identificación de peligros, y control de riesgos en la industria.",
+    duration: "40 horas",
+    level: "Básico",
+    icon: ShieldCheck,
+    image: "/images/course1.png",
+  },
+  {
+    title: "Uso Correcto de EPP",
+    description: "Capacitación práctica en la selección, uso, mantenimiento y disposición final del Equipo de Protección Personal.",
+    duration: "20 horas",
+    level: "Intermedio",
+    icon: UserCheck,
+    image: "/images/course2.png",
+  },
+  {
+    title: "Auditor Interno ISO 45001",
+    description: "Formación especializada para preparar y ejecutar auditorías internas en sistemas de gestión de seguridad y salud en el trabajo.",
+    duration: "60 horas",
+    level: "Avanzado",
+    icon: FileSignature,
+    image: "/images/course3.png",
+  },
+];
+
 const keyCapabilities = [
   { icon: BellRing, text: "Alertas de IA en tiempo real." },
   { icon: TrendingDown, text: "Reducción de tasa de incidentes." },
@@ -58,39 +91,59 @@ export default function LandingPage() {
 
       {/* ======================== HERO SECTION ======================== */}
       <section className="relative flex flex-col items-center justify-center overflow-hidden px-6 pt-32 pb-20">
-        {/* Background glow */}
+        {/* Enhanced background effects */}
         <div className="absolute inset-0 bg-gradient-to-b from-primary/5 via-transparent to-transparent" />
-        <div className="absolute -top-20 h-[500px] w-[500px] rounded-full bg-primary/10 blur-[120px]" />
+        <div className="absolute -top-20 h-[600px] w-[600px] rounded-full bg-gradient-to-r from-primary/10 via-primary/5 to-transparent blur-[120px] animate-pulse" />
+        <div className="absolute top-1/2 left-1/4 h-[300px] w-[300px] rounded-full bg-gradient-to-r from-success/5 to-primary/5 blur-[80px] animate-pulse delay-1000" />
 
-        <div className="relative z-10 mx-auto max-w-4xl text-center">
-          <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-slate-800 bg-surface px-4 py-1.5 text-sm text-muted">
-            <span className="h-2 w-2 rounded-full bg-success animate-pulse" />
+        <div className="relative z-10 mx-auto max-w-5xl text-center">
+          <div className="mb-8 inline-flex items-center gap-2 rounded-full border border-primary/20 bg-primary/5 px-6 py-2 text-sm font-medium text-primary backdrop-blur-sm">
+            <div className="h-2 w-2 rounded-full bg-success animate-pulse" />
             Plataforma empresarial en producción
           </div>
 
-          <h1 className="text-4xl font-bold leading-tight tracking-tight sm:text-5xl md:text-6xl">
-            Nuestra Tecnología en{" "}
-            <span className="text-primary">Prevención de Riesgos</span>
+          <h1 className="text-5xl font-bold leading-tight tracking-tight sm:text-6xl md:text-7xl lg:text-8xl">
+            Tecnología en{" "}
+            <span className="bg-gradient-to-r from-primary via-amber-400 to-primary bg-clip-text text-transparent animate-gradient-x">
+              Prevención de Riesgos
+            </span>
           </h1>
 
-          <p className="mx-auto mt-6 max-w-2xl text-lg text-muted md:text-xl">
+          <p className="mx-auto mt-8 max-w-3xl text-xl text-muted md:text-2xl leading-relaxed">
             Líderes en seguridad industrial con inteligencia artificial. Detectamos infracciones
             de EPP en tiempo real, gestionamos certificados y controlamos inventarios para las
             operaciones más exigentes.
           </p>
 
-          <div className="mt-10 flex flex-wrap items-center justify-center gap-4">
+          <div className="mt-12 flex flex-wrap items-center justify-center gap-6">
             <Link href="/login">
-              <Button variant="primary" size="lg">
-                Solicitar Demostración
-                <ArrowRight className="ml-2 h-4 w-4" />
+              <Button variant="primary" size="lg" className="group relative overflow-hidden">
+                <div className="absolute inset-0 bg-gradient-to-r from-primary to-amber-400 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                <span className="relative z-10">Solicitar Demostración</span>
+                <ArrowRight className="relative z-10 ml-2 h-5 w-5 group-hover:translate-x-1 transition-transform" />
               </Button>
             </Link>
             <a href="#demo">
-              <Button variant="secondary" size="lg">
+              <Button variant="secondary" size="lg" className="backdrop-blur-sm bg-surface/50 border-slate-700/50 hover:bg-surface/80">
                 Ver Tecnología en Acción
               </Button>
             </a>
+          </div>
+
+          {/* Trust indicators */}
+          <div className="mt-16 flex flex-wrap items-center justify-center gap-8 text-sm text-muted">
+            <div className="flex items-center gap-2">
+              <ShieldCheck className="h-4 w-4 text-success" />
+              <span>Certificado ISO 45001</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <Award className="h-4 w-4 text-primary" />
+              <span>Certificado ISO 9001</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <Leaf className="h-4 w-4 text-success" />
+              <span>Certificado ISO 14001</span>
+            </div>
           </div>
         </div>
       </section>
@@ -156,9 +209,8 @@ export default function LandingPage() {
                   {keyCapabilities.map((cap, i) => (
                     <li
                       key={i}
-                      className={`flex items-start gap-4 py-4 ${
-                        i < keyCapabilities.length - 1 ? "border-b border-slate-800" : ""
-                      }`}
+                      className={`flex items-start gap-4 py-4 ${i < keyCapabilities.length - 1 ? "border-b border-slate-800" : ""
+                        }`}
                     >
                       <cap.icon className="mt-0.5 h-5 w-5 shrink-0 text-primary" />
                       <span className="text-sm text-slate-300">{cap.text}</span>
@@ -182,6 +234,92 @@ export default function LandingPage() {
       {/* ======================== SAFETY CYCLE ======================== */}
       <SafetyCycle />
 
+      {/* ======================== COURSES ======================== */}
+      <section id="cursos" className="relative z-10 px-4 sm:px-6 py-16 md:py-24 bg-surface-secondary/30">
+        <div className="mx-auto max-w-7xl">
+          <div className="mb-14 text-center">
+            <Badge variant="secondary" className="mb-3">
+              Capacitación Continua
+            </Badge>
+            <h2 className="text-2xl font-bold text-foreground md:text-3xl lg:text-4xl text-balance">
+              Cursos de Seguridad Industrial
+            </h2>
+            <p className="mx-auto mt-4 max-w-2xl text-muted text-sm md:text-base text-balance">
+              Capacita a tu personal con nuestros cursos especializados. Cumple con las normativas y fomenta una cultura de prevención de riesgos en tu empresa.
+            </p>
+          </div>
+
+          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+            {courses.map((course, index) => (
+              <Card
+                key={index}
+                className="group relative flex flex-col overflow-hidden rounded-2xl border border-slate-800/50 bg-surface transition-all hover:-translate-y-2 hover:border-amber-500/30 hover:shadow-xl hover:shadow-amber-500/10"
+              >
+                {/* Main Course Image */}
+                <div className="relative h-48 w-full overflow-hidden">
+                  <Image
+                    src={course.image}
+                    alt={course.title}
+                    fill
+                    sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                    className="object-cover transition-transform duration-500 group-hover:scale-110"
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-surface via-surface/50 to-transparent"></div>
+
+                  {/* Icon floating */}
+                  <div className="absolute bottom-4 left-4 flex h-12 w-12 items-center justify-center rounded-xl bg-primary shadow-lg ring-4 ring-surface">
+                    <course.icon className="h-6 w-6 text-slate-950" />
+                  </div>
+                </div>
+
+                <CardContent className="relative p-6 flex flex-col flex-1">
+                  <h3 className="text-xl font-bold text-foreground group-hover:text-amber-400 transition-colors">
+                    {course.title}
+                  </h3>
+                  <p className="mt-4 mb-6 flex-grow text-sm text-muted">
+                    {course.description}
+                  </p>
+                  <div className="flex items-center justify-between border-t border-slate-800 pt-4 mt-auto">
+                    <div className="flex items-center gap-2 text-xs text-slate-400">
+                      <Clock className="h-4 w-4 text-slate-500" />
+                      <span>{course.duration}</span>
+                    </div>
+                    <div className="flex items-center gap-2 text-xs font-semibold text-primary">
+                      <GraduationCap className="h-4 w-4" />
+                      <span>{course.level}</span>
+                    </div>
+                  </div>
+
+                  {/* Certificate Preview on Hover */}
+                  <div className="absolute inset-0 flex flex-col items-center justify-center bg-surface/95 backdrop-blur-md opacity-0 transition-all duration-300 group-hover:opacity-100 p-6 z-10 translate-y-4 group-hover:translate-y-0 text-center">
+                    <h4 className="mb-4 font-bold text-foreground text-sm uppercase tracking-wider text-amber-400">
+                      Vista Previa: Certificado
+                    </h4>
+                    <div className="relative w-full aspect-[4/3] rounded-lg overflow-hidden border border-slate-700 shadow-2xl shadow-primary/10">
+                      <Image
+                        src="/images/certificate.png"
+                        alt="Certificado de ejemplo"
+                        fill
+                        sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                        className="object-cover"
+                      />
+                    </div>
+                    <p className="mt-4 text-xs text-muted">
+                      Obtén un certificado avalado al completar este módulo.
+                    </p>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+          <div className="mt-12 text-center">
+            <Button variant="secondary" className="border-slate-700 text-foreground hover:bg-slate-800">
+              Ver Catálogo Completo
+            </Button>
+          </div>
+        </div>
+      </section>
+
       {/* ======================== CERTIFICATIONS ======================== */}
       <section id="certifications" className="relative z-10 px-6 py-24">
         <div className="mx-auto max-w-6xl">
@@ -198,28 +336,35 @@ export default function LandingPage() {
             </p>
           </div>
 
-          <div className="grid gap-6 md:grid-cols-3">
-            {certifications.map((cert) => (
+          <div className="grid gap-8 md:grid-cols-3">
+            {certifications.map((cert, index) => (
               <Card
                 key={cert.iso}
-                className="group rounded-xl border border-slate-800 bg-surface p-0 transition-all duration-300 hover:-translate-y-2 hover:border-primary hover:shadow-[0_10px_30px_rgba(245,158,11,0.1)]"
+                className="group relative overflow-hidden rounded-2xl border border-slate-800/50 bg-gradient-to-br from-surface to-surface-secondary p-0 transition-all duration-500 hover:-translate-y-3 hover:border-primary/30 hover:shadow-2xl hover:shadow-primary/10"
+                style={{ animationDelay: `${index * 150}ms` }}
               >
-                <CardContent className="p-8">
-                  <div className="mb-6 flex h-16 w-16 items-center justify-center rounded-2xl bg-primary/10 text-primary transition-colors duration-300 group-hover:bg-primary/20">
+                <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-success/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
+                <CardContent className="relative p-8">
+                  <div className="mb-6 flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-primary/10 to-primary/5 text-primary transition-all duration-300 group-hover:scale-110 group-hover:bg-primary/20">
                     <cert.icon className="h-8 w-8" />
                   </div>
 
-                  <div className="mb-2 inline-block rounded bg-primary/10 px-2.5 py-1 text-xs font-bold font-mono text-primary">
+                  <div className="mb-2 inline-block rounded-lg bg-gradient-to-r from-primary/10 to-primary/5 px-3 py-1.5 text-sm font-bold font-mono text-primary">
                     {cert.iso}
                   </div>
 
-                  <h3 className="mb-3 text-lg font-semibold text-foreground">
+                  <h3 className="mb-4 text-xl font-bold text-foreground group-hover:text-primary transition-colors duration-300">
                     {cert.title}
                   </h3>
 
-                  <p className="text-sm leading-relaxed text-muted">
+                  <p className="text-muted leading-relaxed">
                     {cert.description}
                   </p>
+
+                  <div className="mt-6 flex items-center gap-2 text-sm text-primary opacity-0 group-hover:opacity-100 transition-all duration-300 transform translate-y-2 group-hover:translate-y-0">
+                    <span>Ver detalles</span>
+                    <ArrowRight className="h-4 w-4 group-hover:translate-x-1 transition-transform" />
+                  </div>
                 </CardContent>
               </Card>
             ))}
@@ -228,20 +373,53 @@ export default function LandingPage() {
       </section>
 
       {/* ======================== CTA STRIP ======================== */}
-      <section className="relative z-10 border-y border-slate-800 bg-surface px-6 py-16">
-        <div className="mx-auto max-w-3xl text-center">
-          <h2 className="text-2xl font-bold text-foreground md:text-3xl">
+      <section className="relative z-10 mx-6 my-24 overflow-hidden rounded-3xl border border-slate-800/50 bg-gradient-to-r from-surface via-surface-secondary to-surface px-6 py-20 shadow-2xl">
+        <div className="absolute inset-0 bg-gradient-to-r from-primary/5 via-transparent to-success/5"></div>
+        <div className="absolute top-0 left-1/4 h-32 w-32 rounded-full bg-primary/10 blur-3xl"></div>
+        <div className="absolute bottom-0 right-1/4 h-24 w-24 rounded-full bg-success/10 blur-2xl"></div>
+
+        <div className="relative mx-auto max-w-4xl text-center">
+          <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-primary/20 bg-primary/5 px-4 py-2 text-sm font-medium text-primary">
+            <ShieldCheck className="h-4 w-4" />
+            Transforma tu operación
+          </div>
+
+          <h2 className="text-3xl font-bold text-foreground md:text-4xl lg:text-5xl">
             ¿Listo para transformar tu operación?
           </h2>
-          <p className="mx-auto mt-3 max-w-xl text-muted">
+          <p className="mx-auto mt-6 max-w-2xl text-lg text-muted leading-relaxed">
             Reduce incidentes, automatiza el cumplimiento y protege a tu equipo con tecnología de punta.
+            Únete a las empresas líderes que ya confían en nosotros.
           </p>
-          <Link href="/login" className="mt-6 inline-block">
-            <Button variant="primary" size="lg">
-              Acceder al Dashboard
-              <ArrowRight className="ml-2 h-4 w-4" />
+
+          <div className="mt-10 flex flex-wrap items-center justify-center gap-6">
+            <Link href="/login">
+              <Button variant="primary" size="lg" className="group relative overflow-hidden shadow-lg shadow-primary/25">
+                <div className="absolute inset-0 bg-gradient-to-r from-primary to-amber-400 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                <span className="relative z-10">Acceder al Dashboard</span>
+                <ArrowRight className="relative z-10 ml-2 h-5 w-5 group-hover:translate-x-1 transition-transform" />
+              </Button>
+            </Link>
+            <Button variant="secondary" size="lg" className="backdrop-blur-sm bg-surface/50 border-slate-700/50 hover:bg-surface/80">
+              Agendar Consulta
             </Button>
-          </Link>
+          </div>
+
+          {/* Stats */}
+          <div className="mt-16 grid grid-cols-3 gap-8 border-t border-slate-700/50 pt-12">
+            <div className="text-center">
+              <div className="text-3xl font-bold text-primary">500+</div>
+              <div className="text-sm text-muted">Empresas activas</div>
+            </div>
+            <div className="text-center">
+              <div className="text-3xl font-bold text-success">99.9%</div>
+              <div className="text-sm text-muted">Disponibilidad</div>
+            </div>
+            <div className="text-center">
+              <div className="text-3xl font-bold text-warning">24/7</div>
+              <div className="text-sm text-muted">Monitoreo continuo</div>
+            </div>
+          </div>
         </div>
       </section>
 
