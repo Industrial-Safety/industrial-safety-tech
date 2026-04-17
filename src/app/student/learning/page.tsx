@@ -131,7 +131,7 @@ export default function MiAprendizajePage() {
                 <div className="flex items-center gap-3">
                   <Link href={`/student/learning/${course.id}`} className="flex-1">
                      <Button 
-                      variant={course.status === 'completed' ? 'outline' : 'default'} 
+                      variant={course.status === 'completed' ? 'outline' : 'primary'} 
                       className="w-full shadow-md"
                     >
                       {course.status === 'completed' ? 'Repasar Material' : (course.progress > 0 ? 'Continuar' : 'Empezar Curso')}

@@ -152,7 +152,7 @@ export default function StudentDashboardPage() {
                   <div>
                     <h4 className="font-semibold text-sm text-danger tracking-wide">REQUERIDO URGENTE</h4>
                     <p className="text-sm mt-1 mb-3">Tienes un nuevo módulo obligatorio asignado por RRHH: <strong>Protocolo de Evacuación Sísmica</strong>.</p>
-                    <Button variant="destructive" size="sm" className="w-full text-xs h-8">
+                    <Button variant="danger" size="sm" className="w-full text-xs h-8">
                       Iniciar Módulo
                     </Button>
                   </div>
