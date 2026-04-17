@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Search, Send, Headphones, UserCircle, MoreVertical, Paperclip, ChevronLeft, Inbox, ShieldAlert } from "lucide-react";
+import { Search, Send, Headphones, UserCircle, MoreVertical, Paperclip, ChevronLeft, Inbox, ShieldAlert, MessageSquare } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 // Mock Contacts Base
