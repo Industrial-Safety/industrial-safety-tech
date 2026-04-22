@@ -12,13 +12,17 @@ import {
   ChevronLeft,
   ChevronRight,
   Shield,
+  LifeBuoy,
+  User
 } from "lucide-react";
 
 const navItems = [
-  { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
-  { href: "/dashboard/certificates", label: "Certificados", icon: FileText },
-  { href: "/dashboard/inventory", label: "Inventario EPP", icon: HardHat },
-  { href: "/dashboard/detection", label: "Detección IA", icon: Camera },
+  { href: "/jefe", label: "Dashboard General", icon: LayoutDashboard },
+  { href: "/jefe/certificates", label: "Certificados", icon: FileText },
+  { href: "/jefe/inventory", label: "Inventario EPP", icon: HardHat },
+  { href: "/jefe/detection", label: "Detección IA", icon: Camera },
+  { href: "/jefe/support", label: "Soporte", icon: LifeBuoy },
+  { href: "/jefe/profile", label: "Mi Perfil", icon: User },
 ];
 
 export default function Sidebar() {
@@ -35,11 +39,11 @@ export default function Sidebar() {
       {/* Logo area */}
       <div className="flex h-14 items-center justify-between border-b border-slate-800 px-4">
         {!collapsed && (
-          <Link href="/dashboard" className="flex items-center gap-2">
-            <div className="flex h-7 w-7 items-center justify-center rounded-md bg-primary">
+          <Link href="/jefe" className="flex items-center gap-2">
+            <div className="flex h-7 w-7 items-center justify-center rounded-md bg-amber-500">
               <Shield className="h-4 w-4 text-slate-950" />
             </div>
-            <span className="text-sm font-bold text-foreground">IS</span>
+            <span className="text-sm font-bold text-foreground">Jefe Seg.</span>
           </Link>
         )}
         <button
@@ -62,7 +66,7 @@ export default function Sidebar() {
               className={cn(
                 "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",
                 isActive
-                  ? "bg-primary/10 text-primary"
+                  ? "bg-amber-500/10 text-amber-500"
                   : "text-muted hover:bg-surface-secondary hover:text-foreground"
               )}
               title={collapsed ? item.label : undefined}

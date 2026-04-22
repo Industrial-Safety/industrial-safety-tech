@@ -23,6 +23,8 @@ import {
   GraduationCap,
   UserCheck,
   FileSignature,
+  Star,
+  PlayCircle,
 } from "lucide-react";
 
 const certifications = [
@@ -51,28 +53,55 @@ const certifications = [
 
 const courses = [
   {
+    id: "prevencion-riesgos",
     title: "Prevención de Riesgos Laborales",
     description: "Curso fundamental sobre normativas de seguridad, identificación de peligros, y control de riesgos en la industria.",
     duration: "40 horas",
     level: "Básico",
+    category: "Normativas",
+    rating: 4.8,
+    reviews: 1240,
+    instructor: {
+      name: "Ing. Carlos Mendoza",
+      avatar: "https://randomuser.me/api/portraits/men/32.jpg",
+      role: "Especialista en SST",
+    },
     icon: ShieldCheck,
-    image: "/images/course1.png",
+    image: "https://images.unsplash.com/photo-1581091226825-a6a2a5aee158?q=80&w=800&auto=format&fit=crop",
   },
   {
+    id: "uso-correcto-epp",
     title: "Uso Correcto de EPP",
     description: "Capacitación práctica en la selección, uso, mantenimiento y disposición final del Equipo de Protección Personal.",
     duration: "20 horas",
     level: "Intermedio",
+    category: "Equipos",
+    rating: 4.9,
+    reviews: 856,
+    instructor: {
+      name: "Lic. Ana Torres",
+      avatar: "https://randomuser.me/api/portraits/women/44.jpg",
+      role: "Auditora HSEQ",
+    },
     icon: UserCheck,
-    image: "/images/course2.png",
+    image: "https://images.unsplash.com/photo-1581092160562-40aa08e78837?q=80&w=800&auto=format&fit=crop",
   },
   {
+    id: "auditor-interno-45001",
     title: "Auditor Interno ISO 45001",
     description: "Formación especializada para preparar y ejecutar auditorías internas en sistemas de gestión de seguridad y salud en el trabajo.",
     duration: "60 horas",
     level: "Avanzado",
+    category: "Auditoría",
+    rating: 4.7,
+    reviews: 512,
+    instructor: {
+      name: "Dr. Roberto Silva",
+      avatar: "https://randomuser.me/api/portraits/men/67.jpg",
+      role: "Lead Auditor ISO 45001",
+    },
     icon: FileSignature,
-    image: "/images/course3.png",
+    image: "https://images.unsplash.com/photo-1504328345606-18bbc8c9d7d1?q=80&w=800&auto=format&fit=crop",
   },
 ];
 
@@ -251,71 +280,90 @@ export default function LandingPage() {
 
           <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
             {courses.map((course, index) => (
-              <Card
-                key={index}
-                className="group relative flex flex-col overflow-hidden rounded-2xl border border-slate-800/50 bg-surface transition-all hover:-translate-y-2 hover:border-amber-500/30 hover:shadow-xl hover:shadow-amber-500/10"
-              >
-                {/* Main Course Image */}
-                <div className="relative h-48 w-full overflow-hidden">
-                  <Image
-                    src={course.image}
-                    alt={course.title}
-                    fill
-                    sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-                    className="object-cover transition-transform duration-500 group-hover:scale-110"
-                  />
-                  <div className="absolute inset-0 bg-gradient-to-t from-surface via-surface/50 to-transparent"></div>
-
-                  {/* Icon floating */}
-                  <div className="absolute bottom-4 left-4 flex h-12 w-12 items-center justify-center rounded-xl bg-primary shadow-lg ring-4 ring-surface">
-                    <course.icon className="h-6 w-6 text-slate-950" />
-                  </div>
-                </div>
-
-                <CardContent className="relative p-6 flex flex-col flex-1">
-                  <h3 className="text-xl font-bold text-foreground group-hover:text-amber-400 transition-colors">
-                    {course.title}
-                  </h3>
-                  <p className="mt-4 mb-6 flex-grow text-sm text-muted">
-                    {course.description}
-                  </p>
-                  <div className="flex items-center justify-between border-t border-slate-800 pt-4 mt-auto">
-                    <div className="flex items-center gap-2 text-xs text-slate-400">
-                      <Clock className="h-4 w-4 text-slate-500" />
-                      <span>{course.duration}</span>
+              <Link href={`/cursos/${course.id}`} key={index} className="block group">
+                <Card
+                  className="relative flex h-full flex-col overflow-hidden rounded-2xl border border-slate-800/50 bg-surface transition-all duration-300 hover:-translate-y-2 hover:border-amber-500/50 hover:shadow-2xl hover:shadow-amber-500/20"
+                >
+                  {/* Main Course Image */}
+                  <div className="relative h-48 w-full overflow-hidden">
+                    <Image
+                      src={course.image}
+                      alt={course.title}
+                      fill
+                      sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                      className="object-cover transition-transform duration-700 group-hover:scale-110"
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-t from-surface via-surface/20 to-transparent"></div>
+                    
+                    {/* Category Badge */}
+                    <div className="absolute top-4 left-4">
+                      <Badge variant="secondary" className="bg-slate-950/60 backdrop-blur-md text-amber-400 border border-amber-500/30">
+                        {course.category}
+                      </Badge>
                     </div>
-                    <div className="flex items-center gap-2 text-xs font-semibold text-primary">
-                      <GraduationCap className="h-4 w-4" />
-                      <span>{course.level}</span>
+
+                    {/* Play Button Overlay on Hover */}
+                    <div className="absolute inset-0 flex items-center justify-center bg-slate-950/40 opacity-0 backdrop-blur-[2px] transition-all duration-300 group-hover:opacity-100">
+                      <div className="flex h-14 w-14 items-center justify-center rounded-full bg-amber-500 text-slate-950 shadow-lg shadow-amber-500/30 transform scale-75 transition-transform duration-300 group-hover:scale-100">
+                        <PlayCircle className="h-7 w-7" />
+                      </div>
                     </div>
                   </div>
 
-                  {/* Certificate Preview on Hover */}
-                  <div className="absolute inset-0 flex flex-col items-center justify-center bg-surface/95 backdrop-blur-md opacity-0 transition-all duration-300 group-hover:opacity-100 p-6 z-10 translate-y-4 group-hover:translate-y-0 text-center">
-                    <h4 className="mb-4 font-bold text-foreground text-sm uppercase tracking-wider text-amber-400">
-                      Vista Previa: Certificado
-                    </h4>
-                    <div className="relative w-full aspect-[4/3] rounded-lg overflow-hidden border border-slate-700 shadow-2xl shadow-primary/10">
-                      <Image
-                        src="/images/certificate.png"
-                        alt="Certificado de ejemplo"
-                        fill
-                        sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-                        className="object-cover"
-                      />
+                  <CardContent className="relative p-6 flex flex-col flex-1">
+                    <h3 className="text-xl font-bold text-foreground group-hover:text-amber-400 transition-colors line-clamp-2">
+                      {course.title}
+                    </h3>
+                    
+                    {/* Instructor Info */}
+                    <div className="mt-3 flex items-center gap-3">
+                      <div className="relative h-8 w-8 overflow-hidden rounded-full border border-slate-700">
+                        <Image
+                          src={course.instructor.avatar}
+                          alt={course.instructor.name}
+                          fill
+                          className="object-cover"
+                        />
+                      </div>
+                      <span className="text-sm font-medium text-slate-300">{course.instructor.name}</span>
                     </div>
-                    <p className="mt-4 text-xs text-muted">
-                      Obtén un certificado avalado al completar este módulo.
+
+                    {/* Rating */}
+                    <div className="mt-3 flex items-center gap-2">
+                      <span className="text-sm font-bold text-amber-400">{course.rating}</span>
+                      <div className="flex items-center text-amber-400">
+                        {[1, 2, 3, 4, 5].map((star) => (
+                          <Star key={star} className={`h-4 w-4 ${star <= Math.floor(course.rating) ? 'fill-current' : 'text-slate-600'}`} />
+                        ))}
+                      </div>
+                      <span className="text-xs text-slate-500">({course.reviews})</span>
+                    </div>
+
+                    <p className="mt-4 mb-6 flex-grow text-sm text-muted line-clamp-2">
+                      {course.description}
                     </p>
-                  </div>
-                </CardContent>
-              </Card>
+
+                    <div className="flex items-center justify-between border-t border-slate-800 pt-4 mt-auto">
+                      <div className="flex items-center gap-2 text-xs text-slate-400">
+                        <Clock className="h-4 w-4 text-slate-500" />
+                        <span>{course.duration}</span>
+                      </div>
+                      <div className="flex items-center gap-2 text-xs font-semibold text-primary">
+                        <GraduationCap className="h-4 w-4" />
+                        <span>{course.level}</span>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              </Link>
             ))}
           </div>
           <div className="mt-12 text-center">
-            <Button variant="secondary" className="border-slate-700 text-foreground hover:bg-slate-800">
-              Ver Catálogo Completo
-            </Button>
+            <Link href="/cursos">
+              <Button variant="secondary" className="border-slate-700 text-foreground hover:bg-slate-800">
+                Ver Catálogo Completo
+              </Button>
+            </Link>
           </div>
         </div>
       </section>

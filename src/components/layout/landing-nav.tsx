@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Shield } from "lucide-react";
+import { CartDropdown } from "@/components/layout/cart-dropdown";
 
 export default function LandingNav() {
   return (
@@ -21,19 +22,19 @@ export default function LandingNav() {
         </Link>
 
         <nav className="hidden items-center gap-8 md:flex">
-          <a href="#demo" className="cursor-pointer text-sm font-medium text-muted transition-colors hover:text-foreground">
+          <a href="/#demo" className="cursor-pointer text-sm font-medium text-muted transition-colors hover:text-foreground">
             Demostración
           </a>
-          <a href="#safety-cycle" className="cursor-pointer text-sm font-medium text-muted transition-colors hover:text-foreground">
+          <a href="/#safety-cycle" className="cursor-pointer text-sm font-medium text-muted transition-colors hover:text-foreground">
             Soluciones
           </a>
-          <a href="#cursos" className="cursor-pointer text-sm font-medium text-muted transition-colors hover:text-foreground">
+          <a href="/#cursos" className="cursor-pointer text-sm font-medium text-muted transition-colors hover:text-foreground">
             Cursos
           </a>
-          <a href="#certifications" className="cursor-pointer text-sm font-medium text-muted transition-colors hover:text-foreground">
+          <a href="/#certifications" className="cursor-pointer text-sm font-medium text-muted transition-colors hover:text-foreground">
             Certificaciones
           </a>
-          <a href="#contact" className="cursor-pointer text-sm font-medium text-muted transition-colors hover:text-foreground">
+          <a href="/#contact" className="cursor-pointer text-sm font-medium text-muted transition-colors hover:text-foreground">
             Contacto
           </a>
         </nav>
@@ -46,6 +47,7 @@ export default function LandingNav() {
               <rect width="1" height="2" x="2" fill="#D91023"/>
             </svg>
           </div>
+          <CartDropdown />
           <Link href="/login" className="cursor-pointer">
             <Button variant="primary" size="sm" className="cursor-pointer rounded-full px-6 shadow-md">
               Acceder

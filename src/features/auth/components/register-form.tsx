@@ -6,8 +6,9 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
-export default function LoginForm() {
+export default function RegisterForm() {
   const router = useRouter();
+  const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
@@ -16,10 +17,10 @@ export default function LoginForm() {
     e.preventDefault();
     setLoading(true);
 
-    // Simulamos carga de red
+    // Simulate network delay
     await new Promise((r) => setTimeout(r, 600));
     setLoading(false);
-    
+
     // Redirigir a la página de selección de rol
     router.push("/select-role");
   };
@@ -27,13 +28,27 @@ export default function LoginForm() {
   return (
     <form onSubmit={handleSubmit} className="flex w-full max-w-sm flex-col gap-5 animate-in fade-in duration-300">
       <div className="space-y-2">
+        <label className="text-sm font-medium text-foreground" htmlFor="name">
+          Nombre completo
+        </label>
+        <Input
+          id="name"
+          type="text"
+          placeholder="Juan Pérez"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          required
+        />
+      </div>
+
+      <div className="space-y-2">
         <label className="text-sm font-medium text-foreground" htmlFor="email">
           Correo electrónico
         </label>
         <Input
           id="email"
           type="email"
-          placeholder="usuario@industrial-safety.com"
+          placeholder="juan@ejemplo.com"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           required
@@ -55,7 +70,7 @@ export default function LoginForm() {
       </div>
 
       <Button type="submit" variant="primary" size="lg" disabled={loading} className="mt-2 bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold">
-        {loading ? "Verificando…" : "Iniciar Sesión"}
+        {loading ? "Creando cuenta…" : "Regístrate"}
       </Button>
 
       <div className="relative my-4">
@@ -63,7 +78,7 @@ export default function LoginForm() {
           <div className="w-full border-t border-slate-800"></div>
         </div>
         <div className="relative flex justify-center text-xs">
-          <span className="bg-background px-2 text-slate-400">O ingresa con red social</span>
+          <span className="bg-background px-2 text-slate-400">O regístrate con</span>
         </div>
       </div>
 
@@ -92,11 +107,11 @@ export default function LoginForm() {
           </svg>
         </Button>
       </div>
-
-      <p className="text-center text-sm text-slate-400 mt-2">
-        ¿No tienes una cuenta?{" "}
-        <Link href="/register" className="text-amber-500 font-semibold hover:underline">
-          Regístrate
+      
+      <p className="text-center text-sm text-slate-400 mt-4">
+        ¿Ya tienes una cuenta?{" "}
+        <Link href="/login" className="text-amber-500 font-semibold hover:underline">
+          Inicia sesión
         </Link>
       </p>
     </form>

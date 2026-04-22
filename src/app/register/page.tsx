@@ -1,15 +1,15 @@
 import Link from "next/link";
-import LoginForm from "@/features/auth/components/login-form";
+import RegisterForm from "@/features/auth/components/register-form";
 import { Shield, Camera, HardHat } from "lucide-react";
 
-export default function LoginPage() {
+export default function RegisterPage() {
   return (
     <div className="flex min-h-screen bg-slate-950 relative overflow-hidden">
       {/* Background Orbs */}
-      <div className="absolute top-[-20%] left-[-10%] w-[50%] h-[50%] rounded-full bg-amber-500/10 blur-[120px] z-0 pointer-events-none" />
-      <div className="absolute bottom-[-20%] right-[-10%] w-[50%] h-[50%] rounded-full bg-amber-600/10 blur-[120px] z-0 pointer-events-none" />
+      <div className="absolute top-[-20%] left-[-10%] w-[50%] h-[50%] rounded-full bg-blue-500/10 blur-[120px] z-0 pointer-events-none" />
+      <div className="absolute bottom-[-20%] right-[-10%] w-[50%] h-[50%] rounded-full bg-emerald-500/10 blur-[120px] z-0 pointer-events-none" />
 
-      {/* Left — Login Form */}
+      {/* Left — Register Form */}
       <div className="relative z-10 flex w-full flex-col items-center justify-center px-4 sm:px-6 lg:w-1/2">
         <div className="w-full max-w-md bg-surface/40 backdrop-blur-xl border border-slate-800 p-8 sm:p-12 rounded-3xl shadow-2xl shadow-black/50">
           <Link href="/" className="mb-10 flex items-center gap-3 w-fit group">
@@ -21,17 +21,17 @@ export default function LoginPage() {
                 PrevenciónTech
               </span>
               <span className="text-[10px] font-medium leading-none tracking-widest text-muted uppercase">
-                Acceso al Portal
+                Crea tu cuenta
               </span>
             </div>
           </Link>
 
-          <h1 className="text-3xl font-bold text-foreground">Bienvenido de vuelta</h1>
+          <h1 className="text-3xl font-bold text-foreground">Regístrate</h1>
           <p className="mt-2 text-sm text-slate-400 mb-8">
-            Ingresa tus credenciales para acceder a tu panel de control.
+            Ingresa tus datos o usa una red social para crear tu cuenta rápidamente.
           </p>
 
-          <LoginForm />
+          <RegisterForm />
         </div>
       </div>
 
@@ -51,14 +51,13 @@ export default function LoginPage() {
           <div className="max-w-lg mb-10">
             <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-amber-500/10 border border-amber-500/20 text-amber-400 text-xs font-semibold mb-6">
               <Shield className="h-4 w-4" />
-              Plataforma N°1 en Latam
+              Tu seguridad es prioridad
             </div>
             <h2 className="text-4xl font-bold text-white leading-tight mb-6 drop-shadow-lg">
-              Seguridad Industrial <span className="text-amber-500">Inteligente</span>
+              Comienza tu viaje <br /> <span className="text-amber-500">seguro hoy</span>
             </h2>
             <p className="text-lg text-slate-300 drop-shadow-md">
-              Una plataforma integral para gestionar certificados, detectar infracciones de EPP con IA
-              y controlar el inventario de equipo de protección en tiempo real.
+              Únete a miles de profesionales que ya gestionan su seguridad y certificaciones con la tecnología líder del sector.
             </p>
           </div>
 
@@ -67,23 +66,24 @@ export default function LoginPage() {
               <div className="h-12 w-12 rounded-full bg-blue-500/20 flex items-center justify-center">
                 <Camera className="h-6 w-6 text-blue-400" />
               </div>
-              <span className="text-sm font-semibold text-slate-200">Detección IA</span>
+              <span className="text-sm font-semibold text-slate-200">Precisión IA</span>
             </div>
             <div className="bg-surface/30 backdrop-blur-md border border-slate-700/50 rounded-2xl p-5 flex flex-col items-center gap-3 hover:bg-surface/50 transition-colors">
               <div className="h-12 w-12 rounded-full bg-amber-500/20 flex items-center justify-center">
                 <HardHat className="h-6 w-6 text-amber-400" />
               </div>
-              <span className="text-sm font-semibold text-slate-200">Inventario</span>
+              <span className="text-sm font-semibold text-slate-200">Control total</span>
             </div>
             <div className="bg-surface/30 backdrop-blur-md border border-slate-700/50 rounded-2xl p-5 flex flex-col items-center gap-3 hover:bg-surface/50 transition-colors">
               <div className="h-12 w-12 rounded-full bg-emerald-500/20 flex items-center justify-center">
                 <Shield className="h-6 w-6 text-emerald-400" />
               </div>
-              <span className="text-sm font-semibold text-slate-200">Certificados</span>
+              <span className="text-sm font-semibold text-slate-200">Certificado</span>
             </div>
           </div>
         </div>
       </div>
+
     </div>
   );
 }
