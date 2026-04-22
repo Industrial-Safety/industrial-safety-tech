@@ -6,28 +6,26 @@ import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 import {
   LayoutDashboard,
-  FileText,
-  HardHat,
-  Camera,
+  TrendingUp,
+  ShieldCheck,
+  Briefcase,
+  FileBarChart,
+  User,
   ChevronLeft,
   ChevronRight,
-  Shield,
-  LifeBuoy,
-  User,
-  ClipboardList
+  Target
 } from "lucide-react";
 
 const navItems = [
-  { href: "/jefe", label: "Dashboard General", icon: LayoutDashboard },
-  { href: "/jefe/requests", label: "Solicitudes EPP", icon: ClipboardList },
-  { href: "/jefe/certificates", label: "Certificados", icon: FileText },
-  { href: "/jefe/inventory", label: "Inventario EPP", icon: HardHat },
-  { href: "/jefe/detection", label: "Detección IA", icon: Camera },
-  { href: "/jefe/support", label: "Soporte", icon: LifeBuoy },
-  { href: "/jefe/profile", label: "Mi Perfil", icon: User },
+  { href: "/gerencia", label: "Resumen Ejecutivo", icon: LayoutDashboard },
+  { href: "/gerencia/analytics", label: "Mapa de Riesgos", icon: TrendingUp },
+  { href: "/gerencia/compliance", label: "Cumplimiento", icon: ShieldCheck },
+  { href: "/gerencia/budget", label: "Inversión HSEQ", icon: Briefcase },
+  { href: "/gerencia/reports", label: "Reportes", icon: FileBarChart },
+  { href: "/gerencia/profile", label: "Mi Perfil", icon: User },
 ];
 
-export default function Sidebar() {
+export default function GerenciaSidebar() {
   const [collapsed, setCollapsed] = useState(false);
   const pathname = usePathname();
 
@@ -41,11 +39,11 @@ export default function Sidebar() {
       {/* Logo area */}
       <div className="flex h-14 items-center justify-between border-b border-slate-800 px-4">
         {!collapsed && (
-          <Link href="/jefe" className="flex items-center gap-2">
-            <div className="flex h-7 w-7 items-center justify-center rounded-md bg-amber-500">
-              <Shield className="h-4 w-4 text-slate-950" />
+          <Link href="/gerencia" className="flex items-center gap-2">
+            <div className="flex h-7 w-7 items-center justify-center rounded-md bg-emerald-500 shadow-md shadow-emerald-500/20">
+              <Target className="h-4 w-4 text-emerald-950" />
             </div>
-            <span className="text-sm font-bold text-foreground">Jefe Seg.</span>
+            <span className="text-sm font-bold text-foreground">Gerencia</span>
           </Link>
         )}
         <button
@@ -60,7 +58,7 @@ export default function Sidebar() {
       {/* Navigation */}
       <nav className="flex flex-1 flex-col gap-1 p-3">
         {navItems.map((item) => {
-          const isActive = pathname === item.href;
+          const isActive = pathname === item.href || pathname.startsWith(`${item.href}/`);
           return (
             <Link
               key={item.href}
@@ -68,7 +66,7 @@ export default function Sidebar() {
               className={cn(
                 "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",
                 isActive
-                  ? "bg-amber-500/10 text-amber-500"
+                  ? "bg-emerald-500/10 text-emerald-500"
                   : "text-muted hover:bg-surface-secondary hover:text-foreground"
               )}
               title={collapsed ? item.label : undefined}

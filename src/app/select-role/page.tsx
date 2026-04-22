@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Shield, GraduationCap, User, HardHat, ArrowLeft, Briefcase, Activity } from "lucide-react";
+import { Shield, GraduationCap, User, HardHat, ArrowLeft, Briefcase, Activity, Target } from "lucide-react";
 
 export default function SelectRolePage() {
   const router = useRouter();
@@ -20,6 +20,14 @@ export default function SelectRolePage() {
   };
 
   const roles = [
+    {
+      id: "gerencia",
+      title: "Gerencia General",
+      description: "Dashboard Ejecutivo y KPIs",
+      path: "/gerencia",
+      icon: Target,
+      color: "teal",
+    },
     {
       id: "admin",
       title: "Administrador",
@@ -79,6 +87,7 @@ export default function SelectRolePage() {
       purple: { hoverBg: "hover:bg-purple-500/10", hoverBorder: "hover:border-purple-500/50", iconBg: "group-hover:bg-purple-500", iconHoverBg: "group-hover:text-purple-950" },
       indigo: { hoverBg: "hover:bg-indigo-500/10", hoverBorder: "hover:border-indigo-500/50", iconBg: "group-hover:bg-indigo-500", iconHoverBg: "group-hover:text-indigo-950" },
       rose: { hoverBg: "hover:bg-rose-500/10", hoverBorder: "hover:border-rose-500/50", iconBg: "group-hover:bg-rose-500", iconHoverBg: "group-hover:text-rose-950" },
+      teal: { hoverBg: "hover:bg-teal-500/10", hoverBorder: "hover:border-teal-500/50", iconBg: "group-hover:bg-teal-500", iconHoverBg: "group-hover:text-teal-950" },
     };
     return classes[color] || classes.amber;
   };

@@ -32,12 +32,12 @@ export default function EquipmentPage() {
       <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold tracking-tight mb-2 flex items-center gap-2">
-            <HardHat className="h-8 w-8 text-primary" /> Control de EPP
+            <HardHat className="h-8 w-8 text-primary" /> Estado de EPP
           </h1>
-          <p className="text-muted">Gestiona y reporta el estado de tu Equipo de Protección Personal.</p>
+          <p className="text-muted">Revisa tu indumentaria asignada y reporta cualquier daño para solicitar un reemplazo.</p>
         </div>
-        <Button className="shrink-0 gap-2 shadow-lg shadow-primary/20">
-          <CloudUpload className="h-4 w-4" /> Sincronizar Evaluaciones
+        <Button variant="outline" className="shrink-0 gap-2 shadow-lg shadow-primary/5 border-primary/20 hover:bg-primary/10">
+          <AlertTriangle className="h-4 w-4" /> Historial de Reportes
         </Button>
       </div>
 
@@ -98,10 +98,10 @@ export default function EquipmentPage() {
            <Card className="bg-surface/50 border-border sticky top-6">
             <CardHeader className="border-b border-border/50 bg-black/10">
               <CardTitle className="text-lg flex items-center gap-2">
-                <Camera className="h-5 w-5 text-primary" /> Evidencia EPP
+                <Camera className="h-5 w-5 text-primary" /> Reportar Daño o Desgaste
               </CardTitle>
               <CardDescription>
-                Sube fotos de tu equipo actual para la validación por IA/Supervisor.
+                Si tu equipo está roto o dañado, toma una foto para registrar el reporte y solicitar un reemplazo.
               </CardDescription>
             </CardHeader>
             <CardContent className="p-6 space-y-6">
@@ -110,7 +110,7 @@ export default function EquipmentPage() {
                 <div className="flex flex-col items-center justify-center text-center p-8 border-2 border-dashed border-border rounded-xl bg-surface-secondary/20">
                    <HardHat className="h-12 w-12 text-muted mb-4 opacity-50" />
                    <p className="text-sm font-medium text-foreground">Selecciona un equipo</p>
-                   <p className="text-xs text-muted mt-2">Haz clic en un ítem de tu inventario para subir o actualizar su evidencia.</p>
+                   <p className="text-xs text-muted mt-2">Haz clic en un ítem de tu inventario para reportar su estado.</p>
                 </div>
               ) : (
                 <div className="animate-in fade-in duration-300">
@@ -131,16 +131,16 @@ export default function EquipmentPage() {
                   </div>
                   
                   <div className="mt-6 bg-surface-secondary/50 rounded-lg p-4 border border-border/50">
-                    <h4 className="text-xs font-semibold uppercase tracking-wider text-muted mb-2">Instrucciones de Captura</h4>
+                    <h4 className="text-xs font-semibold uppercase tracking-wider text-muted mb-2">Instrucciones de Reporte</h4>
                     <ul className="text-xs space-y-2 text-foreground/80">
-                      <li className="flex gap-2 items-start"><CheckCircle className="h-3 w-3 text-success shrink-0 mt-0.5" /> Asegúrate de buena iluminación.</li>
-                      <li className="flex gap-2 items-start"><CheckCircle className="h-3 w-3 text-success shrink-0 mt-0.5" /> El equipo debe estar completo en la foto.</li>
-                      <li className="flex gap-2 items-start"><CheckCircle className="h-3 w-3 text-success shrink-0 mt-0.5" /> Muestra partes sujetas a desgaste (correas, micas, suelas).</li>
+                      <li className="flex gap-2 items-start"><CheckCircle className="h-3 w-3 text-success shrink-0 mt-0.5" /> Toma una foto clara del daño o desgaste.</li>
+                      <li className="flex gap-2 items-start"><CheckCircle className="h-3 w-3 text-success shrink-0 mt-0.5" /> El reporte será enviado a tu Jefe de Seguridad.</li>
+                      <li className="flex gap-2 items-start"><CheckCircle className="h-3 w-3 text-success shrink-0 mt-0.5" /> Mantén tu equipo actual hasta recibir el reemplazo.</li>
                     </ul>
                   </div>
 
-                  <Button className="w-full mt-6 bg-primary text-black font-bold hover:bg-primary/90 shadow-md">
-                    Subir Evidencia a S3
+                  <Button className="w-full mt-6 bg-danger hover:bg-danger/90 text-white font-bold shadow-md gap-2">
+                    <AlertTriangle className="h-4 w-4" /> Registrar Reporte y Solicitar Cambio
                   </Button>
                 </div>
               )}
