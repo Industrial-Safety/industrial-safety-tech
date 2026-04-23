@@ -39,7 +39,7 @@ export default function Navbar() {
 
   const handleLogout = () => {
     sessionStorage.removeItem("user");
-    router.push("/login");
+    router.push("/select-role");
   };
 
   return (
@@ -52,7 +52,7 @@ export default function Navbar() {
 
       <div className="flex items-center gap-4 relative">
         {/* Notification Bell */}
-        <button 
+        <button
           onClick={() => setNotificationsOpen(!notificationsOpen)}
           className={cn(
             "relative p-2 rounded-full transition-colors",

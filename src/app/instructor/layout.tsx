@@ -104,7 +104,7 @@ export default function InstructorLayout({ children }: { children: React.ReactNo
         {/* Logout area */}
         <div className="p-3 border-t border-slate-800">
           <Link
-            href="/login"
+            href="/select-role"
             className={cn(
               "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-danger/80 hover:bg-danger/10 hover:text-danger transition-colors",
               collapsed && "justify-center px-0"
