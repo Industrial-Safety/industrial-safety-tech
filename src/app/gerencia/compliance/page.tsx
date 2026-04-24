@@ -80,7 +80,7 @@ export default function CompliancePage() {
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                <div>
                   <CardTitle className="text-lg">Matriz de Cumplimiento General</CardTitle>
-                  <CardDescription>Detalle por empleado sobre capacitaciones e inventario.</CardDescription>
+                  <CardDescription>Detalle por empleado sobre capacitaciones.</CardDescription>
                </div>
                <div className="flex gap-2 w-full sm:w-auto">
                   <div className="relative w-full sm:w-64">

@@ -1,6 +1,6 @@
 import Link from "next/link";
 import LoginForm from "@/features/auth/components/login-form";
-import { Shield, Camera, HardHat } from "lucide-react";
+import { Shield, Camera } from "lucide-react";
 
 export default function LoginPage() {
   return (
@@ -57,12 +57,12 @@ export default function LoginPage() {
               Seguridad Industrial <span className="text-amber-500">Inteligente</span>
             </h2>
             <p className="text-lg text-slate-300 drop-shadow-md">
-              Una plataforma integral para gestionar certificados, detectar infracciones de EPP con IA
-              y controlar el inventario de equipo de protección en tiempo real.
+              Una plataforma integral para gestionar la detección de EPP con IA
+              y el cumplimiento normativo en tiempo real.
             </p>
           </div>
 
-          <div className="grid grid-cols-3 gap-6 pt-10 border-t border-slate-700/50">
+          <div className="grid grid-cols-2 gap-6 pt-10 border-t border-slate-700/50">
             <div className="bg-surface/30 backdrop-blur-md border border-slate-700/50 rounded-2xl p-5 flex flex-col items-center gap-3 hover:bg-surface/50 transition-colors">
               <div className="h-12 w-12 rounded-full bg-blue-500/20 flex items-center justify-center">
                 <Camera className="h-6 w-6 text-blue-400" />
@@ -70,16 +70,10 @@ export default function LoginPage() {
               <span className="text-sm font-semibold text-slate-200">Detección IA</span>
             </div>
             <div className="bg-surface/30 backdrop-blur-md border border-slate-700/50 rounded-2xl p-5 flex flex-col items-center gap-3 hover:bg-surface/50 transition-colors">
-              <div className="h-12 w-12 rounded-full bg-amber-500/20 flex items-center justify-center">
-                <HardHat className="h-6 w-6 text-amber-400" />
-              </div>
-              <span className="text-sm font-semibold text-slate-200">Inventario</span>
-            </div>
-            <div className="bg-surface/30 backdrop-blur-md border border-slate-700/50 rounded-2xl p-5 flex flex-col items-center gap-3 hover:bg-surface/50 transition-colors">
               <div className="h-12 w-12 rounded-full bg-emerald-500/20 flex items-center justify-center">
                 <Shield className="h-6 w-6 text-emerald-400" />
               </div>
-              <span className="text-sm font-semibold text-slate-200">Certificados</span>
+              <span className="text-sm font-semibold text-slate-200">Cumplimiento</span>
             </div>
           </div>
         </div>

@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Shield, GraduationCap, User, HardHat, ArrowLeft, Briefcase, Activity, Target } from "lucide-react";
+import { Shield, GraduationCap, User, HardHat, ArrowLeft, Briefcase, Activity, Target, Megaphone } from "lucide-react";
 
 export default function SelectRolePage() {
   const router = useRouter();
@@ -69,6 +69,14 @@ export default function SelectRolePage() {
       color: "indigo",
     },
     {
+      id: "marketing",
+      title: "Marketing",
+      description: "Promociones y Campañas",
+      path: "/marketing",
+      icon: Megaphone,
+      color: "pink",
+    },
+    {
       id: "soporte",
       title: "Soporte Técnico",
       description: "Monitor de Sistemas",
@@ -88,6 +96,7 @@ export default function SelectRolePage() {
       indigo: { hoverBg: "hover:bg-indigo-500/10", hoverBorder: "hover:border-indigo-500/50", iconBg: "group-hover:bg-indigo-500", iconHoverBg: "group-hover:text-indigo-950" },
       rose: { hoverBg: "hover:bg-rose-500/10", hoverBorder: "hover:border-rose-500/50", iconBg: "group-hover:bg-rose-500", iconHoverBg: "group-hover:text-rose-950" },
       teal: { hoverBg: "hover:bg-teal-500/10", hoverBorder: "hover:border-teal-500/50", iconBg: "group-hover:bg-teal-500", iconHoverBg: "group-hover:text-teal-950" },
+      pink: { hoverBg: "hover:bg-pink-500/10", hoverBorder: "hover:border-pink-500/50", iconBg: "group-hover:bg-pink-500", iconHoverBg: "group-hover:text-pink-950" },
     };
     return classes[color] || classes.amber;
   };

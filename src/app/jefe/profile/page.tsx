@@ -86,16 +86,16 @@ export default function JefeProfilePage() {
             <CardContent>
               <ul className="space-y-2 text-sm text-slate-400">
                 <li className="flex items-center gap-2">
-                  <div className="h-1.5 w-1.5 rounded-full bg-emerald-500"></div> Gestión de Inventario EPP
+                  <div className="h-1.5 w-1.5 rounded-full bg-emerald-500"></div>
+                  Solicitudes EPP
                 </li>
                 <li className="flex items-center gap-2">
-                  <div className="h-1.5 w-1.5 rounded-full bg-emerald-500"></div> Emisión de Certificados
+                  <div className="h-1.5 w-1.5 rounded-full bg-emerald-500"></div>
+                  Monitoreo Cámaras IA
                 </li>
                 <li className="flex items-center gap-2">
-                  <div className="h-1.5 w-1.5 rounded-full bg-emerald-500"></div> Monitoreo Cámaras IA
-                </li>
-                <li className="flex items-center gap-2">
-                  <div className="h-1.5 w-1.5 rounded-full bg-emerald-500"></div> Edición de Usuarios (Staff)
+                  <div className="h-1.5 w-1.5 rounded-full bg-emerald-500"></div>
+                  Edición de Usuarios (Staff)
                 </li>
               </ul>
             </CardContent>

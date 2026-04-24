@@ -11,7 +11,7 @@ const inter = Inter({
 export const metadata: Metadata = {
   title: "Industrial Safety — Gestión de Seguridad Inteligente",
   description:
-    "Plataforma SaaS para gestión de seguridad industrial: certificados, detección de EPP por IA e inventario.",
+    "Plataforma SaaS para gestión de seguridad industrial: detección de EPP por IA y cumplimiento normativo.",
 };
 
 export default function RootLayout({

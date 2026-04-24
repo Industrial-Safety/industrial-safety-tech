@@ -88,14 +88,19 @@ export function CartDropdown() {
           {cart.length > 0 && (
             <div className="p-4 border-t border-slate-800 bg-surface-secondary/20">
               <div className="flex items-center justify-between font-bold text-lg mb-4 text-foreground">
-                <span>Total:</span>
-                <span>
+                <span className="text-slate-400 text-base">Total:</span>
+                <span className="text-amber-500 text-xl">
                   ${cart.reduce((acc, item) => acc + parseFloat(item.price.replace('$', '')), 0).toFixed(2)}
                 </span>
               </div>
-              <Button className="w-full bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold">
-                Ir a pagar
-              </Button>
+              <div className="flex flex-col gap-2">
+                <Button onClick={() => window.location.href = "/carrito"} className="w-full bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold h-12 text-base">
+                  Ir a pagar
+                </Button>
+                <Button onClick={() => window.location.href = "/cursos"} variant="outline" className="w-full border-slate-700 hover:bg-slate-800 font-semibold h-11 text-sm">
+                  Seguir comprando
+                </Button>
+              </div>
             </div>
           )}
         </div>
