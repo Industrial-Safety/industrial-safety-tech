@@ -20,7 +20,6 @@ import {
   Globe,
   ImageOff
 } from "lucide-react";
-import { Avatar } from "@/components/ui/avatar";
 
 interface Certificate {
   id: string;
@@ -86,7 +85,7 @@ const certificates: Certificate[] = [
   }
 ];
 
-export default function StudentCertificatesPage() {
+export default function TrabajadorCertificatesPage() {
   const [shareModalOpen, setShareModalOpen] = useState(false);
   const [selectedCertificate, setSelectedCertificate] = useState<Certificate | null>(null);
   const [copied, setCopied] = useState(false);
@@ -115,7 +114,6 @@ export default function StudentCertificatesPage() {
   };
 
   const handleDownload = (cert: Certificate) => {
-    // Simulación de descarga de PDF
     alert(`Descargando certificado: ${cert.courseName}.pdf`);
   };
 
@@ -347,12 +345,7 @@ export default function StudentCertificatesPage() {
                 <Share2 className="h-5 w-5 text-primary" />
                 <h3 className="font-bold">Compartir Certificado</h3>
               </div>
-              <button
-                onClick={() => setShareModalOpen(false)}
-                className="text-muted hover:text-foreground transition-colors"
-              >
-                ✕
-              </button>
+              <button onClick={() => setShareModalOpen(false)} className="text-muted hover:text-foreground transition-colors">✕</button>
             </div>
             
             <div className="p-5 space-y-4">
@@ -414,13 +407,8 @@ export default function StudentCertificatesPage() {
             </div>
 
             <div className="p-4 border-t border-border bg-surface-secondary/30 flex justify-end gap-2">
-              <Button variant="ghost" onClick={() => setShareModalOpen(false)}>
-                Cancelar
-              </Button>
-              <Button onClick={() => {
-                handleCopyLink();
-                setShareModalOpen(false);
-              }}>
+              <Button variant="ghost" onClick={() => setShareModalOpen(false)}>Cancelar</Button>
+              <Button onClick={() => { handleCopyLink(); setShareModalOpen(false); }}>
                 <ExternalLink className="h-4 w-4 mr-2" />
                 Copiar Enlace
               </Button>

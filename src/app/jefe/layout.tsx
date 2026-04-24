@@ -15,7 +15,8 @@ import {
   Headphones,
   LogOut,
   Menu,
-  X
+  X,
+  Gavel
 } from "lucide-react";
 import { Avatar } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -24,6 +25,7 @@ import Navbar from "@/components/layout/navbar";
 const jefeNavItems = [
   { href: "/jefe", label: "Dashboard General", icon: LayoutDashboard },
   { href: "/jefe/requests", label: "Solicitudes EPP", icon: ClipboardList },
+  { href: "/jefe/appeals", label: "Apelaciones", icon: Gavel },
   { href: "/jefe/detection", label: "Detección IA", icon: Camera },
   { href: "/jefe/support", label: "Soporte", icon: Headphones },
   { href: "/jefe/profile", label: "Mi Perfil", icon: User },

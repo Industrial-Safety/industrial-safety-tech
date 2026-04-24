@@ -17,7 +17,8 @@ import {
   Trophy,
   LogOut,
   Menu,
-  X
+  X,
+  Award
 } from "lucide-react";
 import { Avatar } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -28,6 +29,7 @@ const workerNavItems = [
   { href: "/trabajador/learning", label: "Mi Aprendizaje", icon: BookOpen },
   { href: "/trabajador/leaderboard", label: "Ranking", icon: Trophy },
   { href: "/trabajador/equipment", label: "Estado de EPP", icon: HardHat },
+  { href: "/trabajador/certificates", label: "Certificados", icon: Award },
   { href: "/trabajador/alerts", label: "Mis Alertas", icon: ShieldAlert },
   { href: "/trabajador/support", label: "Soporte", icon: Headphones },
   { href: "/trabajador/profile", label: "Mi Perfil", icon: User },
