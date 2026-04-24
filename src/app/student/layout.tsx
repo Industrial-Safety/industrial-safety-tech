@@ -14,7 +14,9 @@ import {
   Headphones,
   LogOut,
   Menu,
-  X
+  X,
+  Award,
+  Receipt
 } from "lucide-react";
 import { Avatar } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -23,6 +25,8 @@ import Navbar from "@/components/layout/navbar";
 const studentNavItems = [
   { href: "/student", label: "Mi Resumen", icon: LayoutDashboard },
   { href: "/student/learning", label: "Mi Aprendizaje", icon: BookOpen },
+  { href: "/student/certificates", label: "Certificados", icon: Award },
+  { href: "/student/payment-vouchers", label: "Mis Vouchers", icon: Receipt },
   { href: "/student/support", label: "Soporte", icon: Headphones },
   { href: "/student/profile", label: "Mi Perfil", icon: User },
 ];
