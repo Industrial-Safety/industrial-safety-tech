@@ -6,34 +6,32 @@ import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 import {
   LayoutDashboard,
-  TrendingUp,
-  ShieldCheck,
-  Briefcase,
-  FileBarChart,
+  BookOpen,
+  FileText,
+  Megaphone,
   User,
   ChevronLeft,
   ChevronRight,
-  Target,
+  Headphones,
   LogOut,
   Menu,
   X,
-  FileText
+  Tag
 } from "lucide-react";
 import { Avatar } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import Navbar from "@/components/layout/navbar";
 
-const gerenciaNavItems = [
-  { href: "/gerencia", label: "Resumen Ejecutivo", icon: LayoutDashboard },
-  { href: "/gerencia/analytics", label: "Mapa de Riesgos", icon: TrendingUp },
-  { href: "/gerencia/compliance", label: "Cumplimiento", icon: ShieldCheck },
-  { href: "/gerencia/budget", label: "Inversión HSEQ", icon: Briefcase },
-  { href: "/gerencia/requests", label: "Solicitudes", icon: FileText },
-  { href: "/gerencia/reports", label: "Reportes", icon: FileBarChart },
-  { href: "/gerencia/profile", label: "Mi Perfil", icon: User },
+const marketingNavItems = [
+  { href: "/marketing", label: "Dashboard", icon: LayoutDashboard },
+  { href: "/marketing/courses", label: "Cursos", icon: BookOpen },
+  { href: "/marketing/requests", label: "Solicitudes", icon: FileText },
+  { href: "/marketing/announcements", label: "Anuncios", icon: Megaphone },
+  { href: "/marketing/support", label: "Soporte", icon: Headphones },
+  { href: "/marketing/profile", label: "Mi Perfil", icon: User },
 ];
 
-export default function GerenciaLayout({ children }: { children: React.ReactNode }) {
+export default function MarketingLayout({ children }: { children: React.ReactNode }) {
   const [collapsed, setCollapsed] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const pathname = usePathname();
@@ -61,7 +59,7 @@ export default function GerenciaLayout({ children }: { children: React.ReactNode
         {/* Close button for desktop */}
         <button
           onClick={() => setCollapsed(!collapsed)}
-          className="absolute -right-3 top-6 hidden md:flex h-6 w-6 items-center justify-center rounded-full border border-slate-800 bg-surface shadow-md hover:text-emerald-500 transition-colors z-50"
+          className="absolute -right-3 top-6 hidden md:flex h-6 w-6 items-center justify-center rounded-full border border-slate-800 bg-surface shadow-md hover:text-pink-500 transition-colors z-50"
         >
           {collapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
         </button>
@@ -80,16 +78,16 @@ export default function GerenciaLayout({ children }: { children: React.ReactNode
           collapsed ? "px-2" : "px-4"
         )}>
            <Avatar
-            src="https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=150&h=150&fit=crop&crop=faces"
-            alt="Gerente"
+            src="https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150&h=150&fit=crop&crop=faces"
+            alt="Marketing"
             size={collapsed ? "sm" : "xl"}
-            className={cn("border-2 border-emerald-500/20", collapsed ? "mb-0" : "mb-3")}
+            className={cn("border-2 border-pink-500/20", collapsed ? "mb-0" : "mb-3")}
           />
           {!collapsed && (
             <div className="flex flex-col items-center animate-in fade-in duration-300">
-              <h3 className="font-semibold text-sm text-center line-clamp-1">María Fernández</h3>
-              <Badge variant="outline" className="mt-1 text-[10px] text-emerald-500 border-emerald-500/30 bg-emerald-500/10 flex gap-1 items-center">
-                <Target className="h-3 w-3" /> Gerente General
+              <h3 className="font-semibold text-sm text-center line-clamp-1">Laura Martínez</h3>
+              <Badge variant="outline" className="mt-1 text-[10px] text-pink-500 border-pink-500/30 bg-pink-500/10 flex gap-1 items-center">
+                <Tag className="h-3 w-3" /> Marketing
               </Badge>
             </div>
           )}
@@ -97,8 +95,8 @@ export default function GerenciaLayout({ children }: { children: React.ReactNode
 
         {/* Navigation */}
         <nav className="flex flex-1 flex-col gap-2 p-3 overflow-y-auto overflow-x-hidden">
-          {gerenciaNavItems.map((item) => {
-            const isActive = pathname === item.href || (pathname.startsWith(item.href) && item.href !== '/gerencia');
+          {marketingNavItems.map((item) => {
+            const isActive = pathname === item.href || (pathname.startsWith(item.href) && item.href !== '/marketing');
             return (
               <Link
                 key={item.href}
@@ -107,14 +105,14 @@ export default function GerenciaLayout({ children }: { children: React.ReactNode
                 className={cn(
                   "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all group relative",
                   isActive
-                    ? "bg-emerald-500/10 text-emerald-500"
+                    ? "bg-pink-500/10 text-pink-500"
                     : "text-muted hover:bg-surface-secondary hover:text-foreground",
                   collapsed && "justify-center px-0"
                 )}
                 title={collapsed ? item.label : undefined}
               >
                 {isActive && collapsed && (
-                  <div className="absolute left-0 w-1 h-full bg-emerald-500 rounded-r-md"></div>
+                  <div className="absolute left-0 w-1 h-full bg-pink-500 rounded-r-md"></div>
                 )}
                 <item.icon className={cn("shrink-0", collapsed ? "h-6 w-6" : "h-5 w-5")} />
                 {!collapsed && <span>{item.label}</span>}
@@ -150,7 +148,7 @@ export default function GerenciaLayout({ children }: { children: React.ReactNode
           >
             <Menu className="h-5 w-5 text-muted" />
           </button>
-          <span className="text-sm font-semibold text-foreground">Gerencia</span>
+          <span className="text-sm font-semibold text-foreground">Marketing</span>
           <div className="w-10" /> {/* Spacer para centrar el título */}
         </div>
 
