@@ -7,7 +7,6 @@ import { cn } from "@/lib/utils";
 import {
   LayoutDashboard,
   BookOpen,
-  Award,
   User,
   ChevronLeft,
   ChevronRight,
@@ -33,7 +32,6 @@ const workerNavItems = [
   { href: "/trabajador", label: "Mi Resumen", icon: LayoutDashboard },
   { href: "/trabajador/learning", label: "Mi Aprendizaje", icon: BookOpen },
   { href: "/trabajador/leaderboard", label: "Ranking", icon: Trophy },
-  { href: "/trabajador/certificates", label: "Certificados", icon: Award },
   { href: "/trabajador/equipment", label: "Estado de EPP", icon: HardHat },
   { href: "/trabajador/alerts", label: "Mis Alertas", icon: ShieldAlert },
   { href: "/trabajador/support", label: "Soporte", icon: Headphones },

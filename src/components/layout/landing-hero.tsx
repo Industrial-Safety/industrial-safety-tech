@@ -1,25 +1,13 @@
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { Shield, HardHat, Camera, ClipboardCheck } from "lucide-react";
+import { Shield, Camera, ClipboardCheck } from "lucide-react";
 
 const features = [
-  {
-    icon: Shield,
-    title: "Gestión de Certificados",
-    description:
-      "Emite, valida y renueva certificados de seguridad industrial con trazabilidad completa.",
-  },
   {
     icon: Camera,
     title: "Detección de EPP por IA",
     description:
       "Monitoreo en tiempo real con cámaras inteligentes que detectan el uso correcto de equipo de protección.",
-  },
-  {
-    icon: HardHat,
-    title: "Inventario de EPP",
-    description:
-      "Control de stock automatizado con alertas de reposición y seguimiento de caducidad.",
   },
   {
     icon: ClipboardCheck,
@@ -48,8 +36,8 @@ export default function LandingHero() {
         </h1>
 
         <p className="mx-auto mt-6 max-w-2xl text-lg text-muted md:text-xl">
-          Certificados digitales, detección de EPP por inteligencia artificial e inventario
-          automatizado. Todo en una sola plataforma diseñada para la industria moderna.
+          Detección de EPP por inteligencia artificial y cumplimiento normativo en tiempo real.
+          Todo en una sola plataforma diseñada para la industria moderna.
         </p>
 
         <div className="mt-10 flex flex-wrap items-center justify-center gap-4">
@@ -68,7 +56,7 @@ export default function LandingHero() {
 
       {/* Feature cards */}
       <div id="features" className="relative z-10 mx-auto mt-24 max-w-6xl">
-        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="grid gap-6 sm:grid-cols-2">
           {features.map((f) => (
             <div
               key={f.title}

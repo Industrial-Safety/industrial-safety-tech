@@ -6,8 +6,6 @@ import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 import {
   LayoutDashboard,
-  FileText,
-  HardHat,
   Camera,
   ChevronLeft,
   ChevronRight,
@@ -20,8 +18,6 @@ import {
 const navItems = [
   { href: "/jefe", label: "Dashboard General", icon: LayoutDashboard },
   { href: "/jefe/requests", label: "Solicitudes EPP", icon: ClipboardList },
-  { href: "/jefe/certificates", label: "Certificados", icon: FileText },
-  { href: "/jefe/inventory", label: "Inventario EPP", icon: HardHat },
   { href: "/jefe/detection", label: "Detección IA", icon: Camera },
   { href: "/jefe/support", label: "Soporte", icon: LifeBuoy },
   { href: "/jefe/profile", label: "Mi Perfil", icon: User },

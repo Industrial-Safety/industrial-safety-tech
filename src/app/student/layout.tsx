@@ -7,7 +7,6 @@ import { cn } from "@/lib/utils";
 import {
   LayoutDashboard,
   BookOpen,
-  Award,
   User,
   ChevronLeft,
   ChevronRight,
@@ -25,7 +24,6 @@ import { Badge } from "@/components/ui/badge";
 const studentNavItems = [
   { href: "/student", label: "Mi Resumen", icon: LayoutDashboard },
   { href: "/student/learning", label: "Mi Aprendizaje", icon: BookOpen },
-  { href: "/student/certificates", label: "Mis Certificados", icon: Award },
   { href: "/student/support", label: "Soporte", icon: Headphones },
   { href: "/student/profile", label: "Mi Perfil", icon: User },
 ];

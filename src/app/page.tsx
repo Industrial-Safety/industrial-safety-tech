@@ -108,7 +108,6 @@ const courses = [
 const keyCapabilities = [
   { icon: BellRing, text: "Alertas de IA en tiempo real." },
   { icon: TrendingDown, text: "Reducción de tasa de incidentes." },
-  { icon: ShieldCheck, text: "Control de vigencia de EPP." },
   { icon: FileText, text: "Digitalización de reportes." },
   { icon: LayoutDashboard, text: "Panel de control gerencial." },
 ];
@@ -140,8 +139,7 @@ export default function LandingPage() {
 
           <p className="mx-auto mt-8 max-w-3xl text-xl text-muted md:text-2xl leading-relaxed">
             Líderes en seguridad industrial con inteligencia artificial. Detectamos infracciones
-            de EPP en tiempo real, gestionamos certificados y controlamos inventarios para las
-            operaciones más exigentes.
+            de EPP en tiempo real para las operaciones más exigentes.
           </p>
 
           <div className="mt-12 flex flex-wrap items-center justify-center gap-6">
@@ -221,8 +219,7 @@ export default function LandingPage() {
                   Trazabilidad Total y Cero Papel
                 </h2>
                 <p className="text-base leading-relaxed text-muted">
-                  Digitaliza el control de inventarios de EPP, la emisión de certificados de
-                  capacitación y los reportes de inspección. Elimina los registros manuales en
+                  Digitaliza los reportes de inspección y elimina los registros manuales en
                   papel, reduciendo errores y garantizando que toda tu operación cumpla con las
                   normativas internacionales al instante.
                 </p>
@@ -502,7 +499,7 @@ export default function LandingPage() {
                 </li>
                 <li>
                   <Link href="/login" className="text-sm text-muted transition-colors hover:text-foreground">
-                    Portal de Certificados
+                    Acceder
                   </Link>
                 </li>
                 <li>
