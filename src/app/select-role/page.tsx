@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Shield, GraduationCap, User, HardHat, ArrowLeft, Briefcase, Activity, Target, Megaphone, Truck, Package } from "lucide-react";
+import { Shield, GraduationCap, User, HardHat, ArrowLeft, Briefcase, Activity, Target, Megaphone, Truck } from "lucide-react";
 
 export default function SelectRolePage() {
   const router = useRouter();
@@ -85,19 +85,11 @@ export default function SelectRolePage() {
     },
     {
       id: "logistica",
-      title: "Logística",
-      description: "Planificación y Compras de EPP",
+      title: "Logística y Almacén",
+      description: "Planificación, Compras e Inventario",
       path: "/logistica",
       icon: Truck,
       color: "rose",
-    },
-    {
-      id: "almacen",
-      title: "Almacén",
-      description: "Control y Entrega de Inventario",
-      path: "/almacen",
-      icon: Package,
-      color: "teal",
     },
   ];
 
