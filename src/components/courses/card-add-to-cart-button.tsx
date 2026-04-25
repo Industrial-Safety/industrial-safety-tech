@@ -13,16 +13,18 @@ interface CardAddToCartButtonProps {
 }
 
 export function CardAddToCartButton({ courseId, title, price, image, instructorName }: CardAddToCartButtonProps) {
-  const { addToCart, cart } = useCart();
-  const [isAdded, setIsAdded] = useState(false);
+  const { addToCart, removeFromCart, cart } = useCart();
+  const [isAnimating, setIsAnimating] = useState(false);
 
   const isAddedToCart = cart.some(item => item.id === courseId);
 
-  const handleAddToCart = (e: React.MouseEvent) => {
+  const handleToggleCart = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
     
-    if (!isAddedToCart) {
+    if (isAddedToCart) {
+      removeFromCart(courseId);
+    } else {
       addToCart({
         id: courseId,
         title,
@@ -30,24 +32,23 @@ export function CardAddToCartButton({ courseId, title, price, image, instructorN
         image,
         instructorName,
       });
-      setIsAdded(true);
-      setTimeout(() => setIsAdded(false), 2000);
+      // Show animation effect
+      setIsAnimating(true);
+      setTimeout(() => setIsAnimating(false), 2000);
     }
   };
 
-  const displayAdded = isAdded || isAddedToCart;
-
   return (
     <button
-      onClick={handleAddToCart}
+      onClick={handleToggleCart}
       className={`absolute top-3 right-3 p-2.5 rounded-full backdrop-blur-md transition-all duration-300 z-20 ${
-        displayAdded
+        isAddedToCart
           ? "bg-emerald-500 text-white shadow-lg shadow-emerald-500/30"
           : "bg-slate-950/60 text-slate-300 hover:bg-amber-500 hover:text-slate-950 hover:shadow-lg hover:shadow-amber-500/30"
-      }`}
-      title={displayAdded ? "Añadido a la cesta" : "Añadir a la cesta"}
+      } ${isAnimating ? "scale-110" : "scale-100"}`}
+      title={isAddedToCart ? "Eliminar del carrito" : "Añadir al carrito"}
     >
-      {displayAdded ? (
+      {isAddedToCart ? (
         <Check className="h-4 w-4" />
       ) : (
         <ShoppingCart className="h-4 w-4" />

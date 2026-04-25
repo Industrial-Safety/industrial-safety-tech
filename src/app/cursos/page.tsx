@@ -15,6 +15,7 @@ import {
   GraduationCap,
   Search,
   Filter,
+  Image as ImageIcon
 } from "lucide-react";
 
 // Mock data to match what's in page.tsx
@@ -198,14 +199,8 @@ export default function CatalogPage() {
                     className="relative flex h-full flex-col overflow-hidden rounded-2xl border border-slate-800/50 bg-surface transition-all duration-300 hover:-translate-y-2 hover:border-amber-500/50 hover:shadow-2xl hover:shadow-amber-500/20"
                   >
                     {/* Main Course Image */}
-                    <div className="relative h-48 w-full overflow-hidden">
-                      <Image
-                        src={course.image}
-                        alt={course.title}
-                        fill
-                        sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-                        className="object-cover transition-transform duration-700 group-hover:scale-110"
-                      />
+                    <div className="relative h-48 w-full overflow-hidden bg-slate-800 flex items-center justify-center">
+                      <ImageIcon className="h-16 w-16 text-slate-600 transition-transform duration-700 group-hover:scale-110" />
                       <div className="absolute inset-0 bg-gradient-to-t from-surface via-surface/20 to-transparent"></div>
 
                       {/* Category Badge */}
@@ -230,13 +225,8 @@ export default function CatalogPage() {
 
                       {/* Instructor Info */}
                       <div className="mt-3 flex items-center gap-3">
-                        <div className="relative h-8 w-8 overflow-hidden rounded-full border border-slate-700">
-                          <Image
-                            src={course.instructor.avatar}
-                            alt={course.instructor.name}
-                            fill
-                            className="object-cover"
-                          />
+                        <div className="relative h-8 w-8 overflow-hidden rounded-full border border-slate-700 bg-slate-800 flex items-center justify-center">
+                          <ImageIcon className="h-4 w-4 text-slate-600" />
                         </div>
                         <span className="text-sm font-medium text-slate-300">{course.instructor.name}</span>
                       </div>

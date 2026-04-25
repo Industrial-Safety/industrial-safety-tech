@@ -11,6 +11,10 @@
   --color-success: #10b981;          /* emerald-500 */
   --color-warning: #eab308;          /* yellow-500 */
   --color-danger: #e11d48;           /* rose-600 */
+  --color-popover: #0f172a;          /* slate-900 */
+  --color-popover-foreground: #f8fafc; /* slate-50 */
+  --color-accent: #1e293b;           /* slate-800 */
+  --color-accent-foreground: #f8fafc; /* slate-50 */
   --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
   --font-mono: ui-monospace, "Cascadia Mono", "Segoe UI Mono", monospace;
 }

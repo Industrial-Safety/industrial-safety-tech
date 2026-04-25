@@ -21,8 +21,23 @@ export default function RegisterForm() {
     await new Promise((r) => setTimeout(r, 600));
     setLoading(false);
 
-    // Redirigir a la página de selección de rol
-    router.push("/select-role");
+    // Create a student session automatically for the demo
+    sessionStorage.setItem(
+      "user",
+      JSON.stringify({
+        role: "Alumno",
+        name: name || "Nuevo Estudiante",
+        email: email || "alumno@industrial-safety.com",
+      })
+    );
+
+    const redirectUrl = sessionStorage.getItem("postLoginRedirect");
+    if (redirectUrl) {
+      sessionStorage.removeItem("postLoginRedirect");
+      router.push(redirectUrl);
+    } else {
+      router.push("/#cursos");
+    }
   };
 
   return (

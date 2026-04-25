@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Shield, GraduationCap, User, HardHat, ArrowLeft, Briefcase, Activity, Target, Megaphone } from "lucide-react";
+import { Shield, GraduationCap, User, HardHat, ArrowLeft, Briefcase, Activity, Target, Megaphone, Truck, Package } from "lucide-react";
 
 export default function SelectRolePage() {
   const router = useRouter();
@@ -16,7 +16,14 @@ export default function SelectRolePage() {
         email: `${role.toLowerCase().replace(/ /g, '_')}@industrial-safety.com`,
       })
     );
-    router.push(path);
+
+    const redirectUrl = sessionStorage.getItem("postLoginRedirect");
+    if (redirectUrl) {
+      sessionStorage.removeItem("postLoginRedirect");
+      router.push(redirectUrl);
+    } else {
+      router.push(path);
+    }
   };
 
   const roles = [
@@ -48,7 +55,7 @@ export default function SelectRolePage() {
       id: "student",
       title: "Alumno",
       description: "Estudiante Regular",
-      path: "/student",
+      path: "/#cursos",
       icon: User,
       color: "emerald",
     },
@@ -77,12 +84,20 @@ export default function SelectRolePage() {
       color: "pink",
     },
     {
-      id: "soporte",
-      title: "Soporte Técnico",
-      description: "Monitor de Sistemas",
-      path: "/admin/logs",
-      icon: Activity,
+      id: "logistica",
+      title: "Logística",
+      description: "Planificación y Compras de EPP",
+      path: "/logistica",
+      icon: Truck,
       color: "rose",
+    },
+    {
+      id: "almacen",
+      title: "Almacén",
+      description: "Control y Entrega de Inventario",
+      path: "/almacen",
+      icon: Package,
+      color: "teal",
     },
   ];
 

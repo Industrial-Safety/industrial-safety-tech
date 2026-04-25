@@ -24,7 +24,8 @@ import {
   ChevronDown,
   ThumbsUp,
   ThumbsDown,
-  MoreVertical
+  MoreVertical,
+  Image as ImageIcon
 } from "lucide-react";
 
 // Mock data (in a real app, this would be fetched from a database)
@@ -158,16 +159,16 @@ export default async function CourseDetailPage({ params }: { params: Promise<{ i
       <section className="relative bg-slate-950 pt-32 pb-16 px-4 sm:px-6 lg:px-8 border-b border-slate-800">
         <div className="absolute inset-0 bg-[url('/images/grid-pattern.svg')] opacity-5"></div>
         <div className="absolute top-0 right-0 h-[500px] w-[500px] rounded-full bg-primary/5 blur-[120px]" />
-        
+
         <div className="mx-auto max-w-7xl relative z-10 grid grid-cols-1 lg:grid-cols-3 gap-12 items-start">
-          
+
           {/* Main Content Area */}
           <div className="lg:col-span-2">
             {/* Breadcrumb */}
             <nav className="flex items-center text-sm text-amber-400 font-medium mb-6">
               <Link href="/" className="hover:text-amber-300 transition-colors">Inicio</Link>
               <ChevronRight className="h-4 w-4 mx-2" />
-              <Link href="/#cursos" className="hover:text-amber-300 transition-colors">Cursos</Link>
+              <Link href="/cursos" className="hover:text-amber-300 transition-colors">Cursos</Link>
               <ChevronRight className="h-4 w-4 mx-2" />
               <span className="text-slate-400">{course.category}</span>
             </nav>
@@ -175,7 +176,7 @@ export default async function CourseDetailPage({ params }: { params: Promise<{ i
             <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-white leading-tight mb-4">
               {course.title}
             </h1>
-            
+
             <p className="text-lg text-slate-300 mb-6 leading-relaxed">
               {course.description}
             </p>
@@ -219,9 +220,9 @@ export default async function CourseDetailPage({ params }: { params: Promise<{ i
       {/* ======================== MAIN CONTENT ======================== */}
       <section className="py-12 px-4 sm:px-6 lg:px-8">
         <div className="mx-auto max-w-7xl grid grid-cols-1 lg:grid-cols-3 gap-12 items-start">
-          
+
           <div className="lg:col-span-2 space-y-12">
-            
+
             {/* Learning Outcomes Box */}
             <div className="border border-slate-700/50 bg-surface-secondary/20 p-6 sm:p-8 rounded-xl">
               <h2 className="text-2xl font-bold text-foreground mb-6">Lo que aprenderás</h2>
@@ -243,10 +244,10 @@ export default async function CourseDetailPage({ params }: { params: Promise<{ i
                   {course.instructor.name}
                 </Link>
                 <div className="text-slate-400">{course.instructor.role}</div>
-                
+
                 <div className="flex items-center gap-6 mt-2 mb-4">
-                  <div className="relative h-28 w-28 rounded-full overflow-hidden border-2 border-slate-700 shrink-0">
-                    <Image src={course.instructor.avatar} alt={course.instructor.name} fill className="object-cover" />
+                  <div className="relative h-28 w-28 rounded-full overflow-hidden border-2 border-slate-700 shrink-0 bg-slate-800 flex items-center justify-center">
+                    <ImageIcon className="h-10 w-10 text-slate-600" />
                   </div>
                   <ul className="space-y-2 text-sm text-slate-300">
                     <li className="flex items-center gap-3"><Star className="h-4 w-4 text-amber-500" /> {course.instructor.rating} Calificación del instructor</li>
@@ -255,7 +256,7 @@ export default async function CourseDetailPage({ params }: { params: Promise<{ i
                     <li className="flex items-center gap-3"><PlayCircle className="h-4 w-4 text-amber-500" /> {course.instructor.courses} Cursos</li>
                   </ul>
                 </div>
-                
+
                 <p className="text-sm text-slate-300 leading-relaxed max-w-3xl">
                   {course.instructor.bio}
                 </p>
@@ -285,7 +286,7 @@ export default async function CourseDetailPage({ params }: { params: Promise<{ i
                 <h2 className="text-2xl font-bold text-foreground">Contenido del curso</h2>
                 <span className="text-sm text-slate-400">{course.syllabus.length} secciones • {course.duration} de duración total</span>
               </div>
-              
+
               <div className="flex flex-col border border-slate-700/50 rounded-xl overflow-hidden bg-surface-secondary/10">
                 {course.syllabus.map((module, idx) => (
                   <details key={idx} className="group border-b border-slate-700/50 last:border-b-0">
@@ -318,88 +319,90 @@ export default async function CourseDetailPage({ params }: { params: Promise<{ i
             </div>
 
             {/* Reviews Section */}
-            <CourseReviews 
-              courseRating={course.rating} 
-              courseReviewCount={course.reviews} 
-              instructorName={course.instructor.name} 
+            <CourseReviews
+              courseRating={course.rating}
+              courseReviewCount={course.reviews}
+              instructorName={course.instructor.name}
             />
 
           </div>
 
           {/* Desktop version of the sticky floating card */}
           <div className="hidden lg:block">
-             <div className="sticky top-28 -mt-[420px] w-full max-w-[380px] ml-auto bg-surface rounded-xl border border-slate-700 shadow-2xl overflow-hidden z-30">
-                <div className="relative h-56 w-full group cursor-pointer border-b border-slate-700">
-                  <Image src={course.image} alt={course.title} fill className="object-cover" />
-                  <div className="absolute inset-0 bg-slate-950/40 group-hover:bg-slate-950/20 transition-colors flex items-center justify-center">
-                    <div className="h-16 w-16 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center group-hover:scale-110 transition-transform">
-                      <PlayCircle className="h-10 w-10 text-white" />
-                    </div>
-                  </div>
-                  <div className="absolute bottom-4 left-0 w-full text-center">
-                    <span className="text-white font-semibold text-sm drop-shadow-md">Vista previa de este curso</span>
+            <div className="sticky top-28 -mt-[420px] w-full max-w-[380px] ml-auto bg-surface rounded-xl border border-slate-700 shadow-2xl overflow-hidden z-30">
+              <div className="relative h-56 w-full group cursor-pointer border-b border-slate-700 bg-slate-800">
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <ImageIcon className="h-16 w-16 text-slate-600" />
+                </div>
+                <div className="absolute inset-0 bg-slate-950/40 group-hover:bg-slate-950/20 transition-colors flex items-center justify-center">
+                  <div className="h-16 w-16 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center group-hover:scale-110 transition-transform">
+                    <PlayCircle className="h-10 w-10 text-white" />
                   </div>
                 </div>
-                <div className="p-6">
-                  <div className="text-3xl font-bold text-foreground mb-6">{course.price}</div>
-                  <AddToCartButton 
-                    courseId={id} 
-                    title={course.title} 
-                    price={course.price} 
-                    image={course.image} 
-                    instructorName={course.instructor.name} 
-                  />
-                  <Button variant="outline" className="w-full mb-6 h-12 border-slate-600 hover:bg-slate-800">
-                    Comprar ahora
-                  </Button>
-                  <div className="text-center text-xs text-muted mb-6">
-                    Garantía de reembolso de 30 días
-                  </div>
-                  
-                  <h4 className="font-semibold text-foreground mb-3">Este curso incluye:</h4>
-                  <ul className="space-y-3 text-sm text-slate-300 mb-6">
-                    <li className="flex items-center gap-3"><MonitorPlay className="h-4 w-4 text-slate-400" /> {course.duration} de video bajo demanda</li>
-                    <li className="flex items-center gap-3"><FileText className="h-4 w-4 text-slate-400" /> 14 recursos descargables</li>
-                    <li className="flex items-center gap-3"><Globe className="h-4 w-4 text-slate-400" /> Acceso en dispositivos móviles y TV</li>
-                    <li className="flex items-center gap-3"><Award className="h-4 w-4 text-slate-400" /> Certificado de finalización</li>
-                  </ul>
-                  
-                  <div className="border-t border-slate-700 pt-4 flex items-center justify-between">
-                    <Link href="#" className="text-sm font-semibold text-slate-300 hover:text-white transition-colors underline underline-offset-4 decoration-slate-600">
-                      Aplicar cupón
-                    </Link>
-                  </div>
+                <div className="absolute bottom-4 left-0 w-full text-center">
+                  <span className="text-white font-semibold text-sm drop-shadow-md">Vista previa de este curso</span>
                 </div>
-             </div>
+              </div>
+              <div className="p-6">
+                <div className="text-3xl font-bold text-foreground mb-6">{course.price}</div>
+                <AddToCartButton
+                  courseId={id}
+                  title={course.title}
+                  price={course.price}
+                  image={course.image}
+                  instructorName={course.instructor.name}
+                />
+                <Button variant="outline" className="w-full mb-6 h-12 border-slate-600 hover:bg-slate-800">
+                  Comprar ahora
+                </Button>
+                <div className="text-center text-xs text-muted mb-6">
+                  Garantía de reembolso de 30 días
+                </div>
+
+                <h4 className="font-semibold text-foreground mb-3">Este curso incluye:</h4>
+                <ul className="space-y-3 text-sm text-slate-300 mb-6">
+                  <li className="flex items-center gap-3"><MonitorPlay className="h-4 w-4 text-slate-400" /> {course.duration} de video bajo demanda</li>
+                  <li className="flex items-center gap-3"><FileText className="h-4 w-4 text-slate-400" /> 14 recursos descargables</li>
+                  <li className="flex items-center gap-3"><Globe className="h-4 w-4 text-slate-400" /> Acceso en dispositivos móviles y TV</li>
+                  <li className="flex items-center gap-3"><Award className="h-4 w-4 text-slate-400" /> Certificado de finalización</li>
+                </ul>
+
+                <div className="border-t border-slate-700 pt-4 flex items-center justify-between">
+                  <Link href="#" className="text-sm font-semibold text-slate-300 hover:text-white transition-colors underline underline-offset-4 decoration-slate-600">
+                    Aplicar cupón
+                  </Link>
+                </div>
+              </div>
+            </div>
           </div>
 
           {/* Mobile version of the floating card */}
           <div className="block lg:hidden mt-8">
-             <div className="w-full bg-surface rounded-xl border border-slate-700 shadow-xl overflow-hidden">
-                <div className="p-6">
-                  <div className="text-3xl font-bold text-foreground mb-6">{course.price}</div>
-                  <AddToCartButton 
-                    courseId={id} 
-                    title={course.title} 
-                    price={course.price} 
-                    image={course.image} 
-                    instructorName={course.instructor.name} 
-                  />
-                  <Button variant="outline" className="w-full mb-6 h-12 border-slate-600 hover:bg-slate-800">
-                    Comprar ahora
-                  </Button>
-                  <div className="text-center text-xs text-muted mb-6">
-                    Garantía de reembolso de 30 días
-                  </div>
-                  <div className="border-t border-slate-700 pt-4 text-center">
-                    <Link href="#" className="text-sm font-semibold text-slate-300 hover:text-white transition-colors underline underline-offset-4 decoration-slate-600">
-                      Aplicar cupón
-                    </Link>
-                  </div>
+            <div className="w-full bg-surface rounded-xl border border-slate-700 shadow-xl overflow-hidden">
+              <div className="p-6">
+                <div className="text-3xl font-bold text-foreground mb-6">{course.price}</div>
+                <AddToCartButton
+                  courseId={id}
+                  title={course.title}
+                  price={course.price}
+                  image={course.image}
+                  instructorName={course.instructor.name}
+                />
+                <Button variant="outline" className="w-full mb-6 h-12 border-slate-600 hover:bg-slate-800">
+                  Comprar ahora
+                </Button>
+                <div className="text-center text-xs text-muted mb-6">
+                  Garantía de reembolso de 30 días
                 </div>
-             </div>
+                <div className="border-t border-slate-700 pt-4 text-center">
+                  <Link href="#" className="text-sm font-semibold text-slate-300 hover:text-white transition-colors underline underline-offset-4 decoration-slate-600">
+                    Aplicar cupón
+                  </Link>
+                </div>
+              </div>
+            </div>
           </div>
-          
+
         </div>
       </section>
 

@@ -20,7 +20,27 @@ export default function LoginForm() {
     await new Promise((r) => setTimeout(r, 600));
     setLoading(false);
     
-    // Redirigir a la página de selección de rol
+    // Si el correo contiene "alumno" o "student", lo logueamos directo para probar rápido
+    if (email.toLowerCase().includes("alumno") || email.toLowerCase().includes("student")) {
+      sessionStorage.setItem(
+        "user",
+        JSON.stringify({
+          role: "Alumno",
+          name: "Estudiante Demo",
+          email: email,
+        })
+      );
+      const redirectUrl = sessionStorage.getItem("postLoginRedirect");
+      if (redirectUrl) {
+        sessionStorage.removeItem("postLoginRedirect");
+        router.push(redirectUrl);
+      } else {
+        router.push("/#cursos");
+      }
+      return;
+    }
+
+    // De lo contrario, vamos a la página de selección de rol (demo)
     router.push("/select-role");
   };
 

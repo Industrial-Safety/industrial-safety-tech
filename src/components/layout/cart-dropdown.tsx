@@ -38,7 +38,7 @@ export function CartDropdown() {
       </button>
 
       {isOpen && (
-        <div className="absolute right-0 top-full mt-3 w-80 sm:w-96 rounded-xl border border-slate-700 bg-surface shadow-2xl overflow-hidden z-50 animate-in fade-in slide-in-from-top-2 duration-200">
+        <div className="absolute right-0 top-full mt-3 w-80 sm:w-96 rounded-xl border border-slate-700 bg-surface shadow-2xl overflow-hidden z-[100] animate-in fade-in slide-in-from-top-2 duration-200">
           <div className="p-4 border-b border-slate-800 flex items-center justify-between">
             <h3 className="font-bold text-foreground">Tu cesta ({cartCount})</h3>
             <button onClick={() => setIsOpen(false)} className="text-slate-400 hover:text-white transition-colors">

@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import LandingNav from "@/components/layout/landing-nav";
 import CameraMockup from "@/components/layout/camera-mockup";
 import SafetyCycle from "@/components/layout/safety-cycle";
+import { PersonalizedHero } from "@/components/layout/personalized-hero";
 import {
   ShieldCheck,
   Award,
@@ -124,53 +125,21 @@ export default function LandingPage() {
         <div className="absolute -top-20 h-[600px] w-[600px] rounded-full bg-gradient-to-r from-primary/10 via-primary/5 to-transparent blur-[120px] animate-pulse" />
         <div className="absolute top-1/2 left-1/4 h-[300px] w-[300px] rounded-full bg-gradient-to-r from-success/5 to-primary/5 blur-[80px] animate-pulse delay-1000" />
 
-        <div className="relative z-10 mx-auto max-w-5xl text-center">
-          <div className="mb-8 inline-flex items-center gap-2 rounded-full border border-primary/20 bg-primary/5 px-6 py-2 text-sm font-medium text-primary backdrop-blur-sm">
-            <div className="h-2 w-2 rounded-full bg-success animate-pulse" />
-            Plataforma empresarial en producción
+        <PersonalizedHero />
+
+        {/* Trust indicators */}
+        <div className="mt-16 flex flex-wrap items-center justify-center gap-8 text-sm text-muted">
+          <div className="flex items-center gap-2">
+            <ShieldCheck className="h-4 w-4 text-success" />
+            <span>Certificado ISO 45001</span>
           </div>
-
-          <h1 className="text-5xl font-bold leading-tight tracking-tight sm:text-6xl md:text-7xl lg:text-8xl">
-            Tecnología en{" "}
-            <span className="bg-gradient-to-r from-primary via-amber-400 to-primary bg-clip-text text-transparent animate-gradient-x">
-              Prevención de Riesgos
-            </span>
-          </h1>
-
-          <p className="mx-auto mt-8 max-w-3xl text-xl text-muted md:text-2xl leading-relaxed">
-            Líderes en seguridad industrial con inteligencia artificial. Detectamos infracciones
-            de EPP en tiempo real para las operaciones más exigentes.
-          </p>
-
-          <div className="mt-12 flex flex-wrap items-center justify-center gap-6">
-            <Link href="/login">
-              <Button variant="primary" size="lg" className="group relative overflow-hidden">
-                <div className="absolute inset-0 bg-gradient-to-r from-primary to-amber-400 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-                <span className="relative z-10">Solicitar Demostración</span>
-                <ArrowRight className="relative z-10 ml-2 h-5 w-5 group-hover:translate-x-1 transition-transform" />
-              </Button>
-            </Link>
-            <a href="#demo">
-              <Button variant="secondary" size="lg" className="backdrop-blur-sm bg-surface/50 border-slate-700/50 hover:bg-surface/80">
-                Ver Tecnología en Acción
-              </Button>
-            </a>
+          <div className="flex items-center gap-2">
+            <Award className="h-4 w-4 text-primary" />
+            <span>Certificado ISO 9001</span>
           </div>
-
-          {/* Trust indicators */}
-          <div className="mt-16 flex flex-wrap items-center justify-center gap-8 text-sm text-muted">
-            <div className="flex items-center gap-2">
-              <ShieldCheck className="h-4 w-4 text-success" />
-              <span>Certificado ISO 45001</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <Award className="h-4 w-4 text-primary" />
-              <span>Certificado ISO 9001</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <Leaf className="h-4 w-4 text-success" />
-              <span>Certificado ISO 14001</span>
-            </div>
+          <div className="flex items-center gap-2">
+            <Leaf className="h-4 w-4 text-success" />
+            <span>Certificado ISO 14001</span>
           </div>
         </div>
       </section>

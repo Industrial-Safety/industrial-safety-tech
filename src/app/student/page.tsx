@@ -3,7 +3,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { PlayCircle, Clock, BookOpen, Award, AlertTriangle, ArrowRight } from "lucide-react";
+import { PlayCircle, Clock, BookOpen, Award, AlertTriangle, ArrowRight, Sparkles, Image as ImageIcon } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
 
@@ -28,14 +28,12 @@ export default function StudentDashboardPage() {
             <Card className="bg-surface/60 border-border overflow-hidden hover:border-primary/50 transition-colors group">
               <div className="flex flex-col sm:flex-row">
                 <div className="sm:w-2/5 p-4 relative">
-                  <div className="aspect-video relative rounded-md overflow-hidden bg-slate-900 group-hover:scale-[1.02] transition-transform">
-                    {/* Simulated Image */}
+                  <div className="aspect-video relative rounded-md overflow-hidden bg-slate-800 group-hover:scale-[1.02] transition-transform">
+                    {/* Simulated Image Placeholder */}
                     <div className="absolute inset-0 bg-gradient-to-t from-slate-950 to-transparent z-10" />
-                    <img 
-                      src="https://images.unsplash.com/photo-1571116666359-dc348ccbae97?w=800&q=80" 
-                      alt="Curso EPP" 
-                      className="object-cover w-full h-full opacity-80"
-                    />
+                    <div className="absolute inset-0 flex items-center justify-center opacity-80">
+                      <ImageIcon className="h-12 w-12 text-slate-600" />
+                    </div>
                     <div className="absolute bottom-2 right-2 z-20">
                       <Badge className="bg-black/60 text-white border-none pointer-events-none backdrop-blur-sm">
                         Módulo 3
@@ -179,6 +177,49 @@ export default function StudentDashboardPage() {
         </div>
 
       </div>
+
+      {/* Discover New Courses Section - Modern & Visible */}
+      <section className="mt-12">
+        <div className="flex items-center justify-between mb-6">
+          <h2 className="text-2xl font-bold flex items-center gap-2">
+            <Sparkles className="h-6 w-6 text-purple-400" /> Descubrir nuevos cursos
+          </h2>
+          <Link href="/student/browse">
+            <Button variant="ghost" className="text-purple-400 hover:text-purple-300 hover:bg-purple-500/10">
+              Ver todo el catálogo <ArrowRight className="h-4 w-4 ml-2" />
+            </Button>
+          </Link>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          {[
+            { id: 'prevencion-riesgos', title: 'Prevención de Riesgos', category: 'Normativas', image: 'https://images.unsplash.com/photo-1581091226825-a6a2a5aee158?w=400&q=80' },
+            { id: 'trabajos-altura', title: 'Seguridad en Altura', category: 'Operaciones', image: 'https://images.unsplash.com/photo-1541888081156-fbd2ca91361b?w=400&q=80' },
+            { id: 'auditor-interno-45001', title: 'Auditor ISO 45001', category: 'Auditoría', image: 'https://images.unsplash.com/photo-1504328345606-18bbc8c9d7d1?w=400&q=80' },
+            { id: 'liderazgo-seguridad', title: 'Liderazgo de Seguridad', category: 'Gestión', image: 'https://images.unsplash.com/photo-1522071820081-009f0129c71c?w=400&q=80' }
+          ].map((course) => (
+            <Link href={`/cursos/${course.id}`} key={course.id} className="group">
+              <Card className="bg-surface/30 border-border/50 overflow-hidden hover:border-purple-500/50 transition-all hover:-translate-y-1">
+                <div className="aspect-[16/10] relative overflow-hidden bg-slate-800">
+                  <div className="absolute inset-0 flex items-center justify-center group-hover:scale-110 transition-transform duration-500">
+                    <ImageIcon className="h-10 w-10 text-slate-600" />
+                  </div>
+                  <div className="absolute inset-0 bg-gradient-to-t from-slate-950/80 to-transparent flex items-end p-3">
+                    <Badge className="bg-purple-600 text-white border-none text-[10px]">{course.category}</Badge>
+                  </div>
+                </div>
+                <CardContent className="p-4">
+                  <h4 className="font-bold text-sm line-clamp-1 group-hover:text-purple-400 transition-colors">{course.title}</h4>
+                  <div className="mt-2 flex items-center justify-between">
+                    <span className="text-xs text-muted">Explorar</span>
+                    <PlayCircle className="h-4 w-4 text-purple-400 opacity-0 group-hover:opacity-100 transition-opacity" />
+                  </div>
+                </CardContent>
+              </Card>
+            </Link>
+          ))}
+        </div>
+      </section>
     </div>
   );
 }

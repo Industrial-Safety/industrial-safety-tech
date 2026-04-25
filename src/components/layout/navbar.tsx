@@ -7,6 +7,7 @@ import { useRouter, usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
+import { CartDropdown } from "@/components/layout/cart-dropdown";
 
 type SessionUser = {
   name: string;
@@ -158,7 +159,7 @@ export default function Navbar() {
   };
 
   return (
-    <header className="flex h-16 items-center justify-between border-b border-slate-800 bg-surface/50 backdrop-blur-md px-6 z-10">
+    <header className="flex h-16 items-center justify-between border-b border-slate-800 bg-surface/50 backdrop-blur-md px-6 z-50">
       <div className="flex items-center gap-4">
         <h2 className="text-sm font-medium text-muted truncate max-w-[200px] md:max-w-none">
           <span className="hidden sm:inline">{headerTitles[currentRole] || "Seguridad Industrial / Panel"}</span>
@@ -166,6 +167,13 @@ export default function Navbar() {
       </div>
 
       <div className="flex items-center gap-4 relative">
+        {/* Cart Dropdown - Solo para estudiantes */}
+        {(currentRole === "Estudiante" || currentRole === "Alumno") && (
+          <div className="mr-2">
+            <CartDropdown />
+          </div>
+        )}
+
         {/* Notification Bell */}
         <button
           onClick={() => setNotificationsOpen(!notificationsOpen)}

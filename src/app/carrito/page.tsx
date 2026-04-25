@@ -44,6 +44,14 @@ export default function CartPage() {
   const total = subtotal + igv;
 
   const handleCheckout = () => {
+    const user = sessionStorage.getItem("user");
+    if (!user) {
+      alert("Debes iniciar sesión para finalizar la compra.");
+      sessionStorage.setItem("postLoginRedirect", "/carrito");
+      window.location.href = "/login";
+      return;
+    }
+
     setIsCheckingOut(true);
     // Simulación de proceso de pago - 10 segundos
     setTimeout(() => {

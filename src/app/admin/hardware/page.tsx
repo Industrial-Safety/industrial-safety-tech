@@ -19,6 +19,7 @@ const INITIAL_CAMERAS = [
 export default function HardwareConfigPage() {
   const [cameras, setCameras] = useState(INITIAL_CAMERAS)
   const [testingId, setTestingId] = useState<string | null>(null)
+  const [isModalOpen, setIsModalOpen] = useState(false)
 
   const handleTestConnection = (id: string) => {
     setTestingId(id)
@@ -40,11 +41,66 @@ export default function HardwareConfigPage() {
           <p className="text-muted">Inventario de dispositivos y validación de streams RTSP/RTMP.</p>
         </div>
         
-        <Button className="gap-2">
+        <Button className="gap-2" onClick={() => setIsModalOpen(true)}>
           <Plus className="w-4 h-4" />
           Añadir Cámara
         </Button>
       </div>
+
+      {isModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+          <Card className="w-full max-w-lg bg-surface border-border shadow-2xl animate-in zoom-in-95">
+            <CardHeader>
+              <CardTitle>Añadir Nueva Cámara</CardTitle>
+              <CardDescription>Registra una nueva cámara de vigilancia para el sistema de IA.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-foreground">Marca / Modelo</label>
+                  <Input placeholder="Ej. Hikvision DS-2CD..." />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-foreground">Resolución</label>
+                  <select className="flex h-10 w-full items-center justify-between rounded-md border border-border bg-surface px-3 py-2 text-sm ring-offset-background placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 appearance-none">
+                    <option value="">Selecciona...</option>
+                    <option value="1080p">1080p (FHD)</option>
+                    <option value="4m">4 Megapíxeles</option>
+                    <option value="4k">4K (UHD)</option>
+                  </select>
+                </div>
+              </div>
+              
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-foreground">Dirección IP</label>
+                  <Input placeholder="Ej. 192.168.1.50" />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-foreground">Área / Ubicación</label>
+                  <select className="flex h-10 w-full items-center justify-between rounded-md border border-border bg-surface px-3 py-2 text-sm ring-offset-background placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 appearance-none">
+                    <option value="">Selecciona área...</option>
+                    <option value="Mina Norte">Mina Norte</option>
+                    <option value="Planta Procesamiento">Planta de Procesamiento</option>
+                    <option value="Almacen">Almacén Principal</option>
+                    <option value="Entrada">Entrada Principal</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-foreground">URL de Stream (RTSP/RTMP)</label>
+                <Input placeholder="rtsp://usuario:pass@ip:puerto/stream" />
+              </div>
+
+              <div className="flex justify-end gap-3 mt-6">
+                <Button variant="outline" onClick={() => setIsModalOpen(false)}>Cancelar</Button>
+                <Button onClick={() => setIsModalOpen(false)}>Guardar Cámara</Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
 
       <div className="grid gap-6 md:grid-cols-4">
         {/* Simple Analytics for Hardware */}
