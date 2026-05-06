@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { useSession } from "next-auth/react";
+import { useRouter } from "next/navigation";
 import { 
   Plus, 
   Search, 
@@ -53,6 +54,7 @@ interface CourseResponse {
 }
 
 export default function InstructorCoursesPage() {
+  const router = useRouter();
   const { data: session } = useSession();
   const [courses, setCourses] = useState<CourseResponse[]>([]);
   const [loading, setLoading] = useState(true);
@@ -104,45 +106,58 @@ export default function InstructorCoursesPage() {
 
   const handleCreateCourse = async () => {
     setIsCreating(true);
+    console.log("DEBUG [CreateCourse]: Datos de la sesión:", session);
+    
     try {
+      // Resolvemos el ID del docente de forma segura
+      let teacherId = 1;
+      if (session?.dbId) {
+        const parsed = parseInt(session.dbId as string);
+        if (!isNaN(parsed)) teacherId = parsed;
+      }
+
+      const payload = {
+        title: newCourse.title,
+        subtitle: newCourse.description,
+        teacher: { 
+          id: teacherId, 
+          name: session?.user?.name || "Instructor", 
+          profession: "Instructor Especialista" 
+        },
+        details: {
+          language: "Español",
+          level: "Básico",
+          totalDurationHorus: 0,
+          totalLecture: 0,
+          precio: 0,
+          lastUpdated: new Date().toISOString().split('T')[0]
+        },
+        requirements: [newCourse.requirements || "Requerimiento base"],
+        learningOutcomes: [newCourse.learningOutcomes || "Resultado esperado"],
+        sectionList: [
+          {
+            title: "Introducción al Curso",
+            lectureList: [
+              {
+                title: "Bienvenida y Objetivos",
+                duration: "0:00",
+                lectureType: "VIDEO",
+                contentUrl: "https://industrial-safety-tech.com/placeholder",
+                isPreview: true,
+                resourceList: []
+              }
+            ]
+          }
+        ],
+        reviews: { averageRating: 0, totalReviews: 0 }
+      };
+
+      console.log("DEBUG [CreateCourse]: Enviando Payload:", payload);
+
       const res = await fetch("/api/proxy/course", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          title: newCourse.title,
-          subtitle: newCourse.description,
-          teacher: { 
-            id: Number(session?.dbId) || 1, 
-            name: session?.user?.name || "Instructor", 
-            profession: "Instructor Especialista" 
-          },
-          details: {
-            language: "Español",
-            level: "Básico",
-            totalDurationHorus: 0,
-            totalLecture: 0,
-            precio: 0,
-            lastUpdated: new Date().toISOString().split('T')[0]
-          },
-          requirements: [newCourse.requirements || "Requerimiento base"],
-          learningOutcomes: [newCourse.learningOutcomes || "Resultado esperado"],
-          sectionList: [
-            {
-              title: "Introducción al Curso",
-              lectureList: [
-                {
-                  title: "Bienvenida y Objetivos",
-                  duration: "0:00",
-                  lectureType: "ARTICLE",
-                  contentUrl: "https://industrial-safety-tech.com/placeholder",
-                  isPreview: true,
-                  resourceList: []
-                }
-              ]
-            }
-          ],
-          reviews: { averageRating: 0, totalReviews: 0 }
-        })
+        body: JSON.stringify(payload)
       });
 
       if (res.ok) {

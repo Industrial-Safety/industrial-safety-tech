@@ -16,25 +16,39 @@ import {
   Database,
   BarChart3,
   GripVertical,
-  Pencil
+  Pencil,
+  FileText,
+  Link as LinkIcon,
+  X,
+  Loader2
 } from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 
 export default function CourseBuilderPage() {
   const router = useRouter();
   const params = useParams();
-  const { data: session } = useSession();
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [uploadingProgress, setUploadingProgress] = useState<{ [key: string]: number }>({});
   const [loading, setLoading] = useState(true);
   const [courseData, setCourseData] = useState<any>(null);
   const [selectedModuleIdx, setSelectedModuleIdx] = useState<number | null>(0);
+  const [isSaving, setIsSaving] = useState(false);
+  
+  // Modals state
+  const [isModuleModalOpen, setIsModuleModalOpen] = useState(false);
+  const [isLectureModalOpen, setIsLectureModalOpen] = useState(false);
+  const [newModuleTitle, setNewModuleTitle] = useState("");
+  const [newLectureTitle, setNewLectureTitle] = useState("");
+  const [currentLectureUrl, setCurrentLectureUrl] = useState("");
+
+  // Upload state
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [isUploading, setIsUploading] = useState(false);
 
   useEffect(() => {
     if (params.courseId) {
@@ -56,27 +70,89 @@ export default function CourseBuilderPage() {
     }
   };
 
-  const addSection = () => {
+  const handleSaveCourse = async () => {
+    try {
+      setIsSaving(true);
+      const res = await fetch(`/api/proxy/course/${params.courseId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(courseData)
+      });
+      if (res.ok) alert("¡Cambios guardados con éxito! 🛡️✨");
+    } catch (error) {
+      console.error("Error saving course:", error);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleVideoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    try {
+      setIsUploading(true);
+      setUploadProgress(10);
+
+      const urlRes = await fetch(`/api/proxy/storage/upload-url?fileName=${encodeURIComponent(file.name)}&contentType=${encodeURIComponent(file.type)}`);
+      if (!urlRes.ok) throw new Error("No se pudo obtener la URL de subida");
+      const { uploadUrl, fileUrl } = await urlRes.json();
+
+      setUploadProgress(30);
+
+      const uploadRes = await fetch(uploadUrl, {
+        method: 'PUT',
+        body: file,
+        headers: { 'Content-Type': file.type }
+      });
+
+      if (!uploadRes.ok) throw new Error("Error al subir el archivo a S3");
+
+      setUploadProgress(100);
+      setCurrentLectureUrl(fileUrl);
+      alert("¡Video subido con éxito! 🎥✨");
+    } catch (error) {
+      console.error("Error uploading video:", error);
+      alert("Error en la subida. Revisa tu configuración de S3.");
+    } finally {
+      setIsUploading(false);
+      setUploadProgress(0);
+    }
+  };
+
+  const handleAddModule = () => {
+    if (!newModuleTitle) return;
     const newData = { ...courseData };
-    newData.sectionList.push({ title: "Nuevo Módulo", lectureList: [] });
+    newData.sectionList.push({ title: newModuleTitle, lectureList: [] });
     setCourseData(newData);
+    setNewModuleTitle("");
+    setIsModuleModalOpen(false);
     setSelectedModuleIdx(newData.sectionList.length - 1);
   };
 
-  if (loading) return <div className="p-10 text-center text-muted-foreground animate-pulse">Cargando Constructor del Curso...</div>;
+  const handleAddLecture = () => {
+    if (!newLectureTitle || selectedModuleIdx === null) return;
+    const newData = { ...courseData };
+    newData.sectionList[selectedModuleIdx].lectureList.push({
+      title: newLectureTitle,
+      duration: "0:00",
+      lectureType: "VIDEO",
+      contentUrl: currentLectureUrl,
+      isPreview: false,
+      resourceList: []
+    });
+    setCourseData(newData);
+    setNewLectureTitle("");
+    setCurrentLectureUrl("");
+    setIsLectureModalOpen(false);
+  };
 
-  if (!courseData) {
-    return (
-      <div className="p-20 text-center space-y-4">
-        <p className="text-muted-foreground">No se pudo cargar la información del curso.</p>
-        <Button onClick={() => router.push('/instructor/courses')}>Volver a la lista</Button>
-      </div>
-    );
-  }
+  if (loading) return <div className="p-10 text-center text-muted-foreground animate-pulse">Cargando Constructor...</div>;
+  if (!courseData) return <div className="p-10 text-center">Curso no encontrado.</div>;
 
   return (
     <div className="space-y-6 animate-in fade-in duration-700">
-      {/* Top Header & Breadcrumbs */}
+      {/* Top Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-border/40 pb-6">
         <div className="space-y-1">
           <div className="flex items-center gap-2 text-[10px] text-muted-foreground uppercase font-bold tracking-widest">
@@ -89,18 +165,21 @@ export default function CourseBuilderPage() {
                 <ArrowLeft className="h-4 w-4" />
              </Button>
              <h1 className="text-2xl font-bold flex items-center gap-3">
-               Constructor del Curso 
-               <Badge className="bg-warning/10 text-warning border-warning/20 text-[10px]">Borrador</Badge>
+               {courseData.title} <Badge className="bg-warning text-warning-foreground text-[10px]">Borrador</Badge>
              </h1>
           </div>
-          <p className="text-xs text-muted-foreground font-mono">ID: {params.courseId}</p>
         </div>
         <div className="flex items-center gap-3">
-          <Button variant="outline" className="gap-2 bg-surface-secondary/30 border-border/40">
+          <Button variant="outline" className="gap-2 bg-surface-secondary/30 border-border/40 text-xs h-9">
             <Settings className="h-4 w-4" /> Configuración General
           </Button>
-          <Button className="bg-warning hover:bg-warning/90 text-warning-foreground font-bold shadow-lg shadow-warning/10">
-            Guardar Cambios
+          <Button 
+            onClick={handleSaveCourse}
+            disabled={isSaving}
+            className="bg-warning hover:bg-warning/90 text-warning-foreground font-bold shadow-lg shadow-warning/10 text-xs h-9"
+          >
+            {isSaving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+            {isSaving ? "Guardando..." : "Guardar Cambios"}
           </Button>
         </div>
       </div>
@@ -113,19 +192,14 @@ export default function CourseBuilderPage() {
           <TabsTrigger value="s3" className="data-[state=active]:bg-transparent data-[state=active]:border-b-2 data-[state=active]:border-warning data-[state=active]:text-warning rounded-none h-full px-0 gap-2 font-bold text-xs">
             <Database className="h-4 w-4" /> Repositorio AWS (S3)
           </TabsTrigger>
-          <TabsTrigger value="eval" className="data-[state=active]:bg-transparent data-[state=active]:border-b-2 data-[state=active]:border-warning data-[state=active]:text-warning rounded-none h-full px-0 gap-2 font-bold text-xs">
-            <BarChart3 className="h-4 w-4" /> Sistema de Evaluación
-          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="curriculum" className="mt-8">
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-            
-            {/* Left Content: Module Manager */}
             <div className="lg:col-span-8 space-y-6">
               <div className="flex items-center justify-between">
-                <h2 className="text-lg font-bold">Gestor de Módulos (Drag & Drop)</h2>
-                <Button onClick={addSection} size="sm" variant="outline" className="gap-2 border-border/40 bg-surface-secondary/20">
+                <h2 className="text-lg font-bold">Gestor de Módulos</h2>
+                <Button onClick={() => setIsModuleModalOpen(true)} size="sm" variant="outline" className="gap-2 border-border/40 bg-surface-secondary/20 h-9">
                    <Plus className="h-4 w-4" /> Añadir Módulo
                 </Button>
               </div>
@@ -137,42 +211,40 @@ export default function CourseBuilderPage() {
                     onClick={() => setSelectedModuleIdx(sIdx)}
                     className={cn(
                       "bg-[#0B101A] border-border/40 overflow-hidden transition-all",
-                      selectedModuleIdx === sIdx ? "ring-1 ring-warning/50 border-warning/30" : "hover:border-border"
+                      selectedModuleIdx === sIdx ? "ring-1 ring-warning/50 border-warning/30" : ""
                     )}
                   >
                     <div className="p-4 flex items-center justify-between bg-surface-secondary/10 border-b border-border/20">
                       <div className="flex items-center gap-3">
-                        <GripVertical className="h-4 w-4 text-muted-foreground/40" />
-                        <span className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Módulo {sIdx + 1}:</span>
+                        <GripVertical className="h-4 w-4 text-muted-foreground/30" />
+                        <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Módulo {sIdx + 1}:</span>
                         <h3 className="font-bold text-sm">{section.title}</h3>
                       </div>
                       <div className="flex items-center gap-1">
-                        <Button variant="ghost" size="icon" className="h-8 w-8 hover:text-primary"><Settings className="h-4 w-4" /></Button>
-                        <Button variant="ghost" size="icon" className="h-8 w-8 hover:text-destructive"><Trash2 className="h-4 w-4" /></Button>
+                        <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-white/10"><Settings className="h-4 w-4" /></Button>
+                        <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive/70 hover:bg-destructive/10"><Trash2 className="h-4 w-4" /></Button>
                       </div>
                     </div>
-                    
                     <CardContent className="p-0">
-                      <div className="divide-y divide-border/20">
-                        {section.lectureList.map((lecture: any, lIdx: number) => (
-                          <div key={lIdx} className="p-4 flex items-center justify-between group hover:bg-white/5 transition-colors">
-                            <div className="flex items-center gap-4">
-                              <div className="h-10 w-10 rounded-full bg-surface-secondary/50 flex items-center justify-center">
-                                <Video className="h-4 w-4 text-muted-foreground" />
-                              </div>
-                              <div>
-                                <p className="text-sm font-bold">{lecture.title}</p>
-                                <p className="text-[10px] text-muted-foreground uppercase">{lecture.duration || "0:00"}</p>
-                              </div>
+                      {section.lectureList.map((lecture: any, lIdx: number) => (
+                        <div key={lIdx} className="p-4 flex items-center justify-between border-b border-border/10 last:border-0 group hover:bg-white/5">
+                          <div className="flex items-center gap-4">
+                            <div className="h-10 w-10 rounded-full bg-surface-secondary flex items-center justify-center">
+                              <Video className="h-4 w-4 text-muted-foreground" />
                             </div>
-                            <Button variant="ghost" size="icon" className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity">
-                               <Pencil className="h-3 w-3" />
-                            </Button>
+                            <div>
+                              <p className="text-sm font-bold">{lecture.title}</p>
+                              <p className="text-[10px] text-muted-foreground uppercase">{lecture.duration}</p>
+                            </div>
                           </div>
-                        ))}
-                      </div>
-                      <div className="p-3 bg-surface-secondary/5 border-t border-border/20">
-                        <Button variant="ghost" size="sm" className="w-full border border-dashed border-border/40 text-[10px] uppercase font-bold tracking-widest hover:bg-warning/10 hover:text-warning transition-all">
+                          <Button variant="ghost" size="icon" className="opacity-0 group-hover:opacity-100"><Pencil className="h-3 w-3" /></Button>
+                        </div>
+                      ))}
+                      <div className="p-4 bg-black/20">
+                        <Button 
+                          onClick={() => { setSelectedModuleIdx(sIdx); setIsLectureModalOpen(true); }}
+                          variant="ghost" className="w-full border border-dashed border-border/40 h-10 text-[10px] uppercase font-bold tracking-widest hover:bg-warning/10 hover:text-warning"
+                        >
                           + Agregar Lección
                         </Button>
                       </div>
@@ -182,49 +254,157 @@ export default function CourseBuilderPage() {
               </div>
             </div>
 
-            {/* Right Sidebar: Metadatos */}
+            {/* Sidebar Metadatos */}
             <div className="lg:col-span-4">
-              <Card className="bg-[#0B101A] border-border/40 sticky top-8">
-                <CardHeader className="border-b border-border/20 pb-4">
-                  <CardTitle className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Metadatos del módulo seleccionado</CardTitle>
-                </CardHeader>
-                <CardContent className="p-6 space-y-6">
-                   <div className="space-y-2">
-                     <label className="text-[10px] uppercase font-bold text-muted-foreground tracking-widest">Título</label>
-                     <Input 
-                       value={selectedModuleIdx !== null ? courseData.sectionList[selectedModuleIdx]?.title : ""}
-                       onChange={(e) => {
-                         if (selectedModuleIdx !== null) {
-                           const newData = { ...courseData };
-                           newData.sectionList[selectedModuleIdx].title = e.target.value;
-                           setCourseData(newData);
-                         }
-                       }}
-                       className="bg-surface-secondary/30 border-border/40 h-10 text-sm font-medium"
-                     />
-                   </div>
-                   <div className="space-y-2">
-                     <label className="text-[10px] uppercase font-bold text-muted-foreground tracking-widest">Restricciones de Prerrequisito</label>
-                     <select className="w-full bg-surface-secondary/30 border border-border/40 rounded-md h-10 px-3 text-sm outline-none">
-                       <option>Debe aprobar el módulo anterior</option>
-                       <option>Ninguno</option>
-                     </select>
-                   </div>
-                </CardContent>
-              </Card>
+               <Card className="bg-[#0B101A] border-border/40 sticky top-8">
+                  <CardHeader className="border-b border-border/20">
+                    <CardTitle className="text-[10px] uppercase tracking-widest text-muted-foreground">Metadatos del módulo</CardTitle>
+                  </CardHeader>
+                  <CardContent className="p-6 space-y-6">
+                     <div className="space-y-2">
+                        <label className="text-[10px] font-bold uppercase text-muted-foreground">Título</label>
+                        <Input 
+                          value={selectedModuleIdx !== null ? courseData.sectionList[selectedModuleIdx]?.title : ""}
+                          onChange={(e) => {
+                            if (selectedModuleIdx !== null) {
+                              const newData = { ...courseData };
+                              newData.sectionList[selectedModuleIdx].title = e.target.value;
+                              setCourseData(newData);
+                            }
+                          }}
+                          className="bg-surface-secondary/30 border-border/40 h-10 text-xs" 
+                        />
+                     </div>
+                     <div className="space-y-2">
+                        <label className="text-[10px] font-bold uppercase text-muted-foreground">Restricciones</label>
+                        <select className="w-full bg-surface-secondary/30 border border-border/40 rounded-md h-10 px-3 text-sm outline-none">
+                          <option>Debe aprobar el módulo anterior</option>
+                          <option>Ninguna</option>
+                        </select>
+                     </div>
+                  </CardContent>
+               </Card>
             </div>
-
           </div>
         </TabsContent>
-
-        <TabsContent value="s3">
-          <Card className="bg-[#0B101A] border-border/40 p-12 text-center flex flex-col items-center">
-            <Database className="h-12 w-12 text-muted-foreground/20 mb-4" />
-            <h3 className="text-lg font-bold">Repositorio AWS S3</h3>
-            <p className="text-muted-foreground text-sm mt-2">Aquí aparecerán todos tus archivos subidos a la nube.</p>
-          </Card>
-        </TabsContent>
       </Tabs>
+
+      {/* Modal: Añadir Nuevo Módulo */}
+      <Dialog open={isModuleModalOpen} onOpenChange={setIsModuleModalOpen}>
+        <DialogContent className="bg-[#0F172A] border-border/40 text-foreground max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-xl font-bold">Añadir Nuevo Módulo</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-6 py-4">
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Título del Módulo</label>
+              <Input 
+                placeholder="Ej. Fundamentos de Seguridad..." 
+                value={newModuleTitle}
+                onChange={(e) => setNewModuleTitle(e.target.value)}
+                className="bg-surface-secondary/50 border-border/40"
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Restricciones</label>
+              <select className="w-full bg-surface-secondary/50 border border-border/40 rounded-md h-10 px-3 text-sm outline-none">
+                <option>Debe aprobar el módulo anterior</option>
+                <option>Ninguna</option>
+              </select>
+            </div>
+          </div>
+          <DialogFooter className="gap-2">
+            <Button variant="ghost" onClick={() => setIsModuleModalOpen(false)}>Cancelar</Button>
+            <Button onClick={handleAddModule} className="bg-warning hover:bg-warning/90 text-warning-foreground font-bold px-8 h-10">Guardar Módulo</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Modal: Añadir Lección */}
+      <Dialog open={isLectureModalOpen} onOpenChange={setIsLectureModalOpen}>
+        <DialogContent className="bg-[#0F172A] border-border/40 text-foreground max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="text-xl font-bold">Añadir Lección al Módulo</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-6 py-4">
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Título de la Lección</label>
+              <Input 
+                placeholder="Ej. Presentación del traje..." 
+                value={newLectureTitle}
+                onChange={(e) => setNewLectureTitle(e.target.value)}
+                className="bg-surface-secondary/50 border-border/40"
+              />
+            </div>
+            
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Contenido Principal (Video o Documento)</label>
+              <input 
+                type="file" 
+                id="video-upload" 
+                className="hidden" 
+                accept="video/*,application/pdf"
+                onChange={handleVideoUpload}
+              />
+              <div 
+                onClick={() => document.getElementById('video-upload')?.click()}
+                className="border-2 border-dashed border-border/40 rounded-xl p-8 flex flex-col items-center justify-center gap-3 bg-surface-secondary/20 hover:bg-surface-secondary/40 transition-all cursor-pointer group relative overflow-hidden"
+              >
+                {isUploading ? (
+                  <div className="w-full space-y-3">
+                    <Loader2 className="h-8 w-8 animate-spin text-warning mx-auto" />
+                    <Progress value={uploadProgress} className="h-2" />
+                    <p className="text-xs text-center font-bold">{uploadProgress}% subiendo...</p>
+                  </div>
+                ) : currentLectureUrl ? (
+                  <div className="flex flex-col items-center gap-2">
+                    <CheckCircle2 className="h-8 w-8 text-green-500" />
+                    <p className="text-xs font-bold text-green-500 line-clamp-1">¡Archivo listo!</p>
+                  </div>
+                ) : (
+                  <>
+                    <div className="h-12 w-12 rounded-full bg-surface-secondary flex items-center justify-center group-hover:scale-110 transition-transform">
+                      <Video className="h-6 w-6 text-muted-foreground" />
+                    </div>
+                    <div className="text-center">
+                      <p className="text-sm font-bold">Sube el Video (MP4) o Lectura Base (PDF)</p>
+                      <p className="text-[10px] text-muted-foreground mt-1 uppercase">Máx. 500MB</p>
+                    </div>
+                  </>
+                )}
+              </div>
+            </div>
+
+            <div className="space-y-4 pt-4 border-t border-border/20">
+              <label className="text-sm font-medium">Recursos Adicionales (Opcional)</label>
+              <div className="flex gap-2">
+                <div className="relative flex-1">
+                  <FileText className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                  <Input placeholder="Adjuntar archivo o ruta" className="pl-10 bg-surface-secondary/50 border-border/40 text-xs" />
+                </div>
+                <Button variant="outline" size="icon" className="shrink-0 bg-surface-secondary/50 border-border/40"><UploadCloud className="h-4 w-4" /></Button>
+              </div>
+              <div className="flex gap-2">
+                <div className="relative flex-1">
+                  <LinkIcon className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                  <Input placeholder="Añadir Enlace Web externo" className="pl-10 bg-surface-secondary/50 border-border/40 text-xs" />
+                </div>
+                <Button variant="outline" size="icon" className="shrink-0 bg-surface-secondary/50 border-border/40"><Plus className="h-4 w-4" /></Button>
+              </div>
+            </div>
+          </div>
+          <DialogFooter className="gap-2">
+            <Button variant="ghost" onClick={() => setIsLectureModalOpen(false)}>Cancelar</Button>
+            <Button 
+              onClick={handleAddLecture} 
+              disabled={isUploading || !newLectureTitle}
+              className="bg-warning hover:bg-warning/90 text-warning-foreground font-bold px-8 h-10"
+            >
+              Añadir Lección
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
