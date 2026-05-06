@@ -3,9 +3,10 @@
 import React from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { ShieldCheck, Activity, Users, Video, Settings, FileText, Menu, X } from "lucide-react"
+import { ShieldCheck, Activity, Users, Video, Settings, FileText, Menu, X, LogOut } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
+import { signOut } from "next-auth/react"
 
 const navigation = [
   { name: "Dashboard", href: "/admin", icon: Activity },
@@ -22,6 +23,17 @@ export default function AdminLayout({
 }) {
   const pathname = usePathname()
   const [sidebarOpen, setSidebarOpen] = React.useState(false)
+
+  const handleLogout = () => {
+    const issuer = process.env.NEXT_PUBLIC_KEYCLOAK_ISSUER;
+    const clientId = process.env.NEXT_PUBLIC_KEYCLOAK_CLIENT_ID;
+    
+    const logoutUrl = `${issuer}/protocol/openid-connect/logout?post_logout_redirect_uri=${encodeURIComponent(window.location.origin + "/login")}&client_id=${clientId}`;
+    
+    signOut({ redirect: false }).then(() => {
+      window.location.href = logoutUrl;
+    });
+  }
 
   return (
     <div className="min-h-screen bg-background flex flex-col md:flex-row">
@@ -73,8 +85,17 @@ export default function AdminLayout({
           })}
         </nav>
 
-        {/* User profile excerpt / Return to app */}
-        <div className="p-4 border-t border-border">
+        {/* User profile / Logout / Return to app */}
+        <div className="p-4 border-t border-border space-y-2">
+          <Button 
+            variant="ghost" 
+            className="w-full justify-start gap-2 text-danger hover:bg-danger/10 hover:text-danger"
+            onClick={handleLogout}
+          >
+            <LogOut className="w-5 h-5" />
+            Cerrar Sesión
+          </Button>
+
           <Link href="/">
             <Button variant="outline" className="w-full justify-start gap-2 border-border text-muted hover:text-foreground">
               ← Volver a la Web

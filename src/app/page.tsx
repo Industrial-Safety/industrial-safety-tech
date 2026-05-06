@@ -113,10 +113,21 @@ const keyCapabilities = [
   { icon: LayoutDashboard, text: "Panel de control gerencial." },
 ];
 
-export default function LandingPage() {
+import { auth } from "@/auth";
+import { redirect } from "next/navigation";
+
+export default async function LandingPage() {
+  const session = await auth();
+
+  // Redirección automática para administradores
+  const roles = (session as any)?.roles || [];
+  if (roles.includes("ROLE_ADMINISTRADOR") || roles.includes("ADMINISTRADOR")) {
+    redirect("/select-role");
+  }
+
   return (
     <div className="flex min-h-screen flex-col bg-background">
-      <LandingNav />
+      <LandingNav session={session} />
 
       {/* ======================== HERO SECTION ======================== */}
       <section className="relative flex flex-col items-center justify-center overflow-hidden px-6 pt-32 pb-20">

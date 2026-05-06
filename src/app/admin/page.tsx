@@ -3,8 +3,10 @@
 import React, { useState, useEffect } from "react"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Avatar } from "@/components/ui/avatar"
-import { Users, Activity, Video, Database, Server, ChevronUp, CheckCircle2, AlertCircle } from "lucide-react"
+import { Users, Activity, Video, Database, Server, ChevronUp, CheckCircle2, AlertCircle, Shield, GraduationCap } from "lucide-react"
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
+import Link from "next/link"
+import { cn } from "@/lib/utils"
 
 // Mock Data for Recharts
 const userActivityData = [
@@ -134,6 +136,7 @@ export default function AdminDashboardPage() {
       {/* Charts Section */}
       <div className="grid gap-4 md:grid-cols-2">
         <Card className="bg-surface/50 border-border md:col-span-2">
+          {/* ... existing chart content ... */}
           <CardHeader>
             <CardTitle>Tráfico de Usuarios en Tiempo Real</CardTitle>
             <CardDescription>Conexiones concurrentes por hora en el sistema</CardDescription>
@@ -165,6 +168,38 @@ export default function AdminDashboardPage() {
             </div>
           </CardContent>
         </Card>
+      </div>
+
+      {/* Modules Access Section */}
+      <div>
+        <h2 className="text-2xl font-bold tracking-tight mb-6">Módulos del Sistema</h2>
+        <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+          {[
+            { name: "Jefe de Seguridad", href: "/jefe", icon: Shield, color: "text-amber-500", desc: "Monitoreo IA y EPP" },
+            { name: "Gerencia General", href: "/gerencia", icon: Activity, color: "text-emerald-500", desc: "Reportes y KPIs" },
+            { name: "Logística / Almacén", href: "/logistica", icon: Database, color: "text-blue-500", desc: "Control de Inventario" },
+            { name: "Marketing", href: "/marketing", icon: Users, color: "text-pink-500", desc: "Campañas y Ventas" },
+            { name: "Instructor de Cursos", href: "/instructor", icon: GraduationCap, color: "text-purple-500", desc: "Gestión Académica" },
+            { name: "Operario / Trabajador", href: "/trabajador", icon: Activity, color: "text-orange-500", desc: "Portal de Campo" },
+            { name: "Portal Estudiante", href: "/student", icon: GraduationCap, color: "text-indigo-500", desc: "Cursos y Pagos" },
+          ].map((module) => (
+            <Link key={module.name} href={module.href}>
+              <Card className="bg-surface/40 hover:bg-surface/60 border-border transition-all hover:scale-[1.02] cursor-pointer group h-full">
+                <CardContent className="p-6">
+                  <div className="flex items-center gap-4">
+                    <div className={cn("p-3 rounded-xl bg-slate-900 group-hover:bg-slate-800 transition-colors", module.color)}>
+                      <module.icon className="w-6 h-6" />
+                    </div>
+                    <div>
+                      <h3 className="font-bold text-foreground group-hover:text-primary transition-colors">{module.name}</h3>
+                      <p className="text-xs text-muted leading-tight mt-1">{module.desc}</p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </Link>
+          ))}
+        </div>
       </div>
 
     </div>

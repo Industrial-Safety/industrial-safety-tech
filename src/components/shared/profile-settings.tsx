@@ -229,6 +229,24 @@ export function ProfileSettings({ initialData, onUpdateProfile, onChangePassword
                   />
                 </div>
               </div>
+
+              <div className="mt-4 p-3 bg-primary/5 rounded-lg border border-primary/10">
+                <p className="text-[10px] font-bold uppercase tracking-wider text-primary mb-2">Requisitos de Seguridad:</p>
+                <ul className="grid grid-cols-2 gap-x-4 gap-y-1">
+                  <li className="text-[10px] text-muted-foreground flex items-center gap-1">
+                    <div className="w-1 h-1 rounded-full bg-primary/50" /> Mínimo 8 caracteres
+                  </li>
+                  <li className="text-[10px] text-muted-foreground flex items-center gap-1">
+                    <div className="w-1 h-1 rounded-full bg-primary/50" /> Al menos una mayúscula
+                  </li>
+                  <li className="text-[10px] text-muted-foreground flex items-center gap-1">
+                    <div className="w-1 h-1 rounded-full bg-primary/50" /> Al menos un número
+                  </li>
+                  <li className="text-[10px] text-muted-foreground flex items-center gap-1">
+                    <div className="w-1 h-1 rounded-full bg-primary/50" /> Un carácter especial (@, #, $)
+                  </li>
+                </ul>
+              </div>
             </CardContent>
             <CardFooter className="border-t border-border mt-4 pt-6 justify-end">
               <Button type="submit" variant="secondary" disabled={savingPassword || passData.new.length < 6}>

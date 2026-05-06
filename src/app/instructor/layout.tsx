@@ -21,6 +21,7 @@ import {
 } from "lucide-react";
 import { Avatar } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
+import { signOut, useSession } from "next-auth/react";
 
 const instructorNavItems = [
   { href: "/instructor", label: "Dashboard", icon: PieChart },
@@ -31,9 +32,20 @@ const instructorNavItems = [
 ];
 
 export default function InstructorLayout({ children }: { children: React.ReactNode }) {
+  const { data: session } = useSession();
   const [collapsed, setCollapsed] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const pathname = usePathname();
+
+  const handleLogout = () => {
+    const issuer = process.env.NEXT_PUBLIC_KEYCLOAK_ISSUER;
+    const clientId = process.env.NEXT_PUBLIC_KEYCLOAK_CLIENT_ID;
+    const logoutUrl = `${issuer}/protocol/openid-connect/logout?post_logout_redirect_uri=${encodeURIComponent(window.location.origin + "/login")}&client_id=${clientId}`;
+    
+    signOut({ redirect: false }).then(() => {
+      window.location.href = logoutUrl;
+    });
+  };
 
   return (
     <div className="flex h-screen w-full bg-background overflow-hidden font-sans text-foreground">
@@ -59,15 +71,17 @@ export default function InstructorLayout({ children }: { children: React.ReactNo
           collapsed ? "px-2" : "px-4"
         )}>
            <Avatar 
-            src="https://images.unsplash.com/photo-1560250097-0b93528c311a?w=150&h=150&fit=crop&crop=faces" 
+            src={session?.user?.image || "https://images.unsplash.com/photo-1560250097-0b93528c311a?w=150&h=150&fit=crop&crop=faces"} 
             alt="Instructor" 
             size={collapsed ? "sm" : "xl"}
             className={cn("border-2 border-primary/20", collapsed ? "mb-0" : "mb-3")}
           />
           {!collapsed && (
             <div className="flex flex-col items-center animate-in fade-in duration-300">
-              <h3 className="font-semibold text-sm text-center line-clamp-1 text-primary">Ing. Roberto M.</h3>
-              <Badge variant="outline" className="mt-1 text-[10px] text-primary border-primary/30 flex gap-1 items-center">
+              <h3 className="font-semibold text-sm text-center line-clamp-1 text-primary">
+                {session?.user?.name || "Cargando..."}
+              </h3>
+              <Badge variant="outline" className="mt-1 text-[10px] text-primary border-primary/30 flex gap-1 items-center uppercase tracking-wider">
                 <Briefcase className="h-3 w-3" /> Instructor
               </Badge>
             </div>
@@ -103,17 +117,17 @@ export default function InstructorLayout({ children }: { children: React.ReactNo
 
         {/* Logout area */}
         <div className="p-3 border-t border-slate-800">
-          <Link
-            href="/select-role"
+          <button
+            onClick={handleLogout}
             className={cn(
-              "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-danger/80 hover:bg-danger/10 hover:text-danger transition-colors",
+              "flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-danger/80 hover:bg-danger/10 hover:text-danger transition-colors",
               collapsed && "justify-center px-0"
             )}
             title={collapsed ? "Cerrar Sesión" : undefined}
           >
             <LogOut className={cn("shrink-0", collapsed ? "h-6 w-6" : "h-5 w-5")} />
             {!collapsed && <span>Cerrar Sesión</span>}
-          </Link>
+          </button>
         </div>
       </aside>
 

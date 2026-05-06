@@ -4,22 +4,44 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Shield, User, LayoutDashboard, LogOut } from "lucide-react";
+import { signOut } from "next-auth/react";
 import { CartDropdown } from "@/components/layout/cart-dropdown";
 import { cn } from "@/lib/utils";
 
-export default function LandingNav({ variant = "floating" }: { variant?: "floating" | "full" }) {
-  const [user, setUser] = useState<{ name: string; role: string } | null>(null);
+export default function LandingNav({ variant = "floating", session }: { variant?: "floating" | "full", session?: any }) {
   const [isProfileOpen, setIsProfileOpen] = useState(false);
+  const [customAvatar, setCustomAvatar] = useState<string | null>(null);
 
+  // Leemos foto personalizada subida a S3 (si existe)
   useEffect(() => {
-    const storedUser = sessionStorage.getItem("user");
-    if (storedUser) {
-      setUser(JSON.parse(storedUser));
-    }
+    setCustomAvatar(localStorage.getItem("custom_avatar"));
   }, []);
+
+  // Extraer información del usuario desde la sesión de NextAuth
+  let user = null;
+  if (session?.user) {
+    let role = "Estudiante"; // Rol por defecto
+    if (session.accessToken) {
+      try {
+        const payloadBase64 = session.accessToken.split(".")[1];
+        const payload = JSON.parse(atob(payloadBase64));
+        const roles = payload.realm_access?.roles || [];
+        if (roles.includes("ROLE_ADMINISTRADOR") || roles.includes("ADMINISTRADOR")) role = "Administrador";
+        else if (roles.includes("ROLE_GERENCIA") || roles.includes("ROLE_GERENCIA_GENERAL")) role = "Gerente General";
+        else if (roles.includes("ROLE_JEFE_SEGURIDAD")) role = "Jefe de Seguridad";
+      } catch (e) {
+        console.error("Error decodificando JWT en navbar", e);
+      }
+    }
+    user = {
+      name: session.user.name || "Usuario",
+      role: role
+    };
+  }
 
   const getDashboardLink = (role: string) => {
     switch (role) {
+      case "Administrador": return "/admin";
       case "Jefe de Seguridad": return "/jefe";
       case "Gerente General": return "/gerencia";
       case "Operario / Empleado": return "/trabajador";
@@ -88,8 +110,17 @@ export default function LandingNav({ variant = "floating" }: { variant?: "floati
                 onClick={() => setIsProfileOpen(!isProfileOpen)}
                 className="flex items-center gap-2 hover:opacity-80 transition-opacity focus:outline-none"
               >
-                <div className="flex h-9 w-9 items-center justify-center rounded-full bg-slate-800 border border-slate-700" title={user.name}>
-                  <User className="h-4 w-4 text-primary" />
+                <div className="flex h-9 w-9 items-center justify-center rounded-full bg-slate-800 border border-slate-700 overflow-hidden" title={user.name}>
+                  {(customAvatar || session?.user?.image) ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={customAvatar || session.user.image}
+                      alt={user.name}
+                      className="h-full w-full object-cover"
+                    />
+                  ) : (
+                    <User className="h-4 w-4 text-primary" />
+                  )}
                 </div>
                 <div className="hidden sm:flex flex-col items-start text-left">
                   <span className="text-sm font-semibold text-foreground leading-none">{user.name.split(' ')[0]}</span>
@@ -114,10 +145,7 @@ export default function LandingNav({ variant = "floating" }: { variant?: "floati
                     </Link>
                     <div className="my-1 border-t border-slate-800"></div>
                     <button
-                      onClick={() => {
-                        sessionStorage.removeItem("user");
-                        window.location.href = "/";
-                      }}
+                      onClick={() => window.location.href = '/api/auth/keycloak-logout'}
                       className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-slate-300 hover:bg-danger/10 hover:text-danger transition-colors text-left"
                     >
                       <LogOut className="h-4 w-4" />
