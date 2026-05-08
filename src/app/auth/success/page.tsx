@@ -1,10 +1,10 @@
-import { cookies } from "next/headers";
+import { auth } from "@/auth";
 import AuthSuccessClient from "./client-page";
 
 export default async function AuthSuccessPage() {
-  const cookieStore = await cookies();
-  const newUserEmail = cookieStore.get("is_new_oauth_user")?.value;
+  const session = await auth();
+  const isNewUser = session?.isNewUser === true;
+  const newUserEmail = isNewUser ? (session?.newUserEmail ?? session?.user?.email ?? undefined) : undefined;
 
-  // Renderizamos el cliente y le pasamos el email (si existe) para que maneje la redirección en la ventana principal
   return <AuthSuccessClient newUserEmail={newUserEmail} />;
 }

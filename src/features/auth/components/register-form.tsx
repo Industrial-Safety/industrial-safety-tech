@@ -1,14 +1,12 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 import { signIn } from "next-auth/react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
 export default function RegisterForm() {
-  const router = useRouter();
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -32,13 +30,28 @@ export default function RegisterForm() {
       }),
     });
 
+    if (!response.ok) {
+      setLoading(false);
+      setError("Error al crear la cuenta, intenta de nuevo");
+      return;
+    }
+
+    // Registro exitoso -> login automático via credentials
+    const result = await signIn("credentials", {
+      email,
+      password,
+      redirect: false,
+    });
+
     setLoading(false);
 
-    if (response.ok) {
-      router.push("/login");
-    } else {
-      setError("Error al crear la cuenta, intenta de nuevo");
+    if (result?.error) {
+      setError("Cuenta creada. Inicia sesión manualmente.");
+      return;
     }
+
+    // Login exitoso -> dejamos que el middleware redirija según el rol
+    window.location.href = "/";
   };
 
   const registerWithProvider = (provider: string) => {
@@ -48,14 +61,7 @@ export default function RegisterForm() {
     const top = window.screenY + (window.outerHeight - height) / 2;
 
     const url = `/auth/login-redirect?provider=${provider}`;
-    const popup = window.open(url, "Register", `width=${width},height=${height},left=${left},top=${top}`);
-
-    const timer = setInterval(() => {
-      if (popup?.closed) {
-        clearInterval(timer);
-        // La redirección ahora la maneja el popup
-      }
-    }, 500);
+    window.open(url, "Register", `width=${width},height=${height},left=${left},top=${top}`);
   };
 
   return (

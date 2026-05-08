@@ -167,7 +167,7 @@ export default function StaffAndAccessPage() {
       const payload = {
         ...formData,
         role: roleMap[selectedArea] || "ROLE_ALUMNO",
-        password: "defaultPassword123"
+        password: "DefaultPass1!"
       }
 
       const response = await fetch("/api/proxy/users", {

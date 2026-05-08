@@ -62,7 +62,7 @@ export default function ProfileSettingsClient({ initialData, accessToken }: Prof
       // 2. Si hay imagen nueva, subir a S3 vía Proxy
       if (avatarFile) {
         const presignRes = await fetch(
-          `/api/storage/upload-url?fileName=${encodeURIComponent(avatarFile.name)}&contentType=${encodeURIComponent(avatarFile.type)}`
+          `/api/storage/upload-url?fileName=${encodeURIComponent("users/profile-photos/" + avatarFile.name)}&contentType=${encodeURIComponent(avatarFile.type)}`
         );
 
         if (presignRes.ok) {

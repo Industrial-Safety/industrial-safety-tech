@@ -27,19 +27,25 @@ export default function LoginForm() {
 
     if (result?.error) {
       setError("Credenciales incorrectas");
-    } else {
-      // Obtenemos la sesión para ver el rol antes de redirigir
-      const sessionResponse = await fetch("/api/auth/session");
-      const session = await sessionResponse.json();
-      
-      const roles = session?.roles || [];
-      const isAdmin = roles.includes("ROLE_ADMINISTRADOR") || roles.includes("ADMINISTRADOR");
+      return;
+    }
 
-      if (isAdmin) {
-        window.location.href = "/select-role";
-      } else {
-        window.location.href = "/";
-      }
+    const sessionResponse = await fetch("/api/auth/session");
+    const session = await sessionResponse.json();
+
+    // Si el usuario debe cambiar su contrasena, redirigir primero
+    if (session?.mustChangePassword === true) {
+      window.location.href = `/auth/set-password?email=${encodeURIComponent(email)}`;
+      return;
+    }
+
+    const roles = session?.roles || [];
+    const isAdmin = roles.includes("ROLE_ADMINISTRADOR") || roles.includes("ADMINISTRADOR");
+
+    if (isAdmin) {
+      window.location.href = "/select-role";
+    } else {
+      window.location.href = "/";
     }
   };
 
@@ -49,15 +55,12 @@ export default function LoginForm() {
     const left = window.screenX + (window.outerWidth - width) / 2;
     const top = window.screenY + (window.outerHeight - height) / 2;
 
-    // Abrimos el popup hacia nuestra página intermedia que se encargará de hacer el POST
     const url = `/auth/login-redirect?provider=${provider}`;
     const popup = window.open(url, "Login", `width=${width},height=${height},left=${left},top=${top}`);
 
-    // Detectamos cuándo se cierra la ventana
     const timer = setInterval(() => {
       if (popup?.closed) {
         clearInterval(timer);
-        // La redirección ahora la maneja el popup antes de cerrarse (AuthSuccessClient)
       }
     }, 500);
   };
@@ -72,20 +75,20 @@ export default function LoginForm() {
 
       <div className="space-y-2">
         <label className="text-sm font-medium text-foreground" htmlFor="email">
-          Correo electrónico o Usuario
+          Correo electronico o Usuario
         </label>
         <Input id="email" type="text" placeholder="usuario o email" value={email} onChange={(e) => setEmail(e.target.value)} required />
       </div>
 
       <div className="space-y-2">
         <label className="text-sm font-medium text-foreground" htmlFor="password">
-          Contraseña
+          Contrasena
         </label>
         <Input id="password" type="password" placeholder="••••••••" value={password} onChange={(e) => setPassword(e.target.value)} required />
       </div>
 
       <Button type="submit" variant="primary" size="lg" disabled={loading} className="mt-2 bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold">
-        {loading ? "Verificando…" : "Iniciar Sesión"}
+        {loading ? "Verificando…" : "Iniciar Sesion"}
       </Button>
 
       <div className="relative my-4">
@@ -131,9 +134,9 @@ export default function LoginForm() {
       </div>
 
       <p className="text-center text-sm text-slate-400 mt-2">
-        ¿No tienes una cuenta?{" "}
+        No tienes una cuenta?{" "}
         <Link href="/register" className="text-amber-500 font-semibold hover:underline">
-          Regístrate
+          Registrate
         </Link>
       </p>
     </form>
