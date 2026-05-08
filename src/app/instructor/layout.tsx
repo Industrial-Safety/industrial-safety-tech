@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
@@ -36,6 +36,42 @@ export default function InstructorLayout({ children }: { children: React.ReactNo
   const [collapsed, setCollapsed] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const pathname = usePathname();
+  const [customAvatar, setCustomAvatar] = useState<string | null>(null);
+
+  useEffect(() => {
+    // Read cached avatar immediately for instant render
+    try {
+      const cached = localStorage.getItem("custom_avatar");
+      if (cached) setCustomAvatar(cached);
+    } catch (_) {}
+  }, []);
+
+  useEffect(() => {
+    if (!session?.dbId) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch(`/api/proxy/users/${session.dbId}`);
+        if (!res.ok || cancelled) return;
+        const data = await res.json();
+        if (data?.urlPhoto) {
+          setCustomAvatar(data.urlPhoto);
+          try { localStorage.setItem("custom_avatar", data.urlPhoto); } catch (_) {}
+        }
+      } catch (_) {}
+    })();
+    return () => { cancelled = true; };
+  }, [session?.dbId]);
+
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const custom = e as CustomEvent<{ url: string }>;
+      if (custom.detail?.url) setCustomAvatar(custom.detail.url);
+    };
+    window.addEventListener("avatar-updated", handler);
+    return () => window.removeEventListener("avatar-updated", handler);
+  }, []);
+
 
   const handleLogout = () => {
     const issuer = process.env.NEXT_PUBLIC_KEYCLOAK_ISSUER;
@@ -71,7 +107,7 @@ export default function InstructorLayout({ children }: { children: React.ReactNo
           collapsed ? "px-2" : "px-4"
         )}>
            <Avatar 
-            src={session?.user?.image || "https://images.unsplash.com/photo-1560250097-0b93528c311a?w=150&h=150&fit=crop&crop=faces"} 
+            src={customAvatar || session?.user?.image || "https://images.unsplash.com/photo-1560250097-0b93528c311a?w=150&h=150&fit=crop&crop=faces"} 
             alt="Instructor" 
             size={collapsed ? "sm" : "xl"}
             className={cn("border-2 border-primary/20", collapsed ? "mb-0" : "mb-3")}

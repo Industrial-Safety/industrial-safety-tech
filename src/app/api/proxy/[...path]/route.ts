@@ -10,13 +10,30 @@ async function safeJson(response: Response) {
     }
 }
 
+function getSession() {
+    return auth()
+}
+
+function invalidSession(session: any) {
+    if (!session) return true
+    if ((session as any).error === "RefreshAccessTokenError") return true
+    if (!(session as any).accessToken) return true
+    return false
+}
+
+function buildTargetUrl(req: NextRequest, path: string) {
+    const queryString = req.nextUrl.searchParams.toString()
+    const base = `${process.env.API_URL}/api/v1/${path}`
+    return queryString ? `${base}?${queryString}` : base
+}
+
 export async function GET(req: NextRequest, { params }: { params: { path: string[] } }) {
-    const session = await auth()
-    if (!session) return NextResponse.json({ error: "No session" }, { status: 401 })
+    const session = await getSession()
+    if (invalidSession(session)) return NextResponse.json({ error: "No session" }, { status: 401 })
 
     const resolvedParams = await params
     const path = resolvedParams.path.join("/")
-    const targetUrl = `${process.env.API_URL}/api/v1/${path}`
+    const targetUrl = buildTargetUrl(req, path)
 
     try {
         const response = await fetch(targetUrl, {
@@ -33,13 +50,13 @@ export async function GET(req: NextRequest, { params }: { params: { path: string
 }
 
 export async function POST(req: NextRequest, { params }: { params: { path: string[] } }) {
-    const session = await auth()
-    if (!session) return NextResponse.json({ error: "No session" }, { status: 401 })
+    const session = await getSession()
+    if (invalidSession(session)) return NextResponse.json({ error: "No session" }, { status: 401 })
 
     const resolvedParams = await params
     const path = resolvedParams.path.join("/")
-    const targetUrl = `${process.env.API_URL}/api/v1/${path}`
-    
+    const targetUrl = buildTargetUrl(req, path)
+
     let body = {}
     try {
         body = await req.json()
@@ -66,13 +83,13 @@ export async function POST(req: NextRequest, { params }: { params: { path: strin
 }
 
 export async function PUT(req: NextRequest, { params }: { params: { path: string[] } }) {
-    const session = await auth()
-    if (!session) return NextResponse.json({ error: "No session" }, { status: 401 })
+    const session = await getSession()
+    if (invalidSession(session)) return NextResponse.json({ error: "No session" }, { status: 401 })
 
     const resolvedParams = await params
     const path = resolvedParams.path.join("/")
-    const targetUrl = `${process.env.API_URL}/api/v1/${path}`
-    
+    const targetUrl = buildTargetUrl(req, path)
+
     let body = {}
     try {
         body = await req.json()
@@ -91,6 +108,32 @@ export async function PUT(req: NextRequest, { params }: { params: { path: string
         return NextResponse.json(data, { status: response.status })
     } catch (error) {
         console.error("Proxy PUT Error:", error)
+        return NextResponse.json({ error: "Proxy error" }, { status: 500 })
+    }
+}
+
+export async function DELETE(req: NextRequest, { params }: { params: { path: string[] } }) {
+    const session = await getSession()
+    if (invalidSession(session)) return NextResponse.json({ error: "No session" }, { status: 401 })
+
+    const resolvedParams = await params
+    const path = resolvedParams.path.join("/")
+    const targetUrl = buildTargetUrl(req, path)
+
+    try {
+        const response = await fetch(targetUrl, {
+            method: "DELETE",
+            headers: {
+                "Authorization": `Bearer ${(session as any).accessToken}`
+            }
+        })
+        if (response.status === 204) {
+            return new NextResponse(null, { status: 204 })
+        }
+        const data = await safeJson(response)
+        return NextResponse.json(data, { status: response.status })
+    } catch (error) {
+        console.error("Proxy DELETE Error:", error)
         return NextResponse.json({ error: "Proxy error" }, { status: 500 })
     }
 }

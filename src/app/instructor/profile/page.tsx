@@ -109,6 +109,64 @@ export default function InstructorProfilePage() {
     }
   };
 
+  const handleAvatarUpload = async (file: File): Promise<string | null> => {
+    if (!session?.dbId) return null;
+    try {
+      const presignRes = await fetch(
+        `/api/storage/upload-url?fileName=${encodeURIComponent("users/profile-photos/" + Date.now() + "-" + file.name)}&contentType=${encodeURIComponent(file.type)}`
+      );
+      if (!presignRes.ok) {
+        alert("Error obteniendo URL de subida");
+        return null;
+      }
+      const { uploadUrl, fileUrl } = await presignRes.json();
+
+      const s3Res = await fetch(uploadUrl, {
+        method: "PUT",
+        headers: { "Content-Type": file.type },
+        body: file,
+      });
+      if (!s3Res.ok) {
+        alert("Error subiendo imagen a S3");
+        return null;
+      }
+
+      const nameParts = profileData.name.trim().split(" ");
+      const userPayload = {
+        name: nameParts[0] || "",
+        lastName: nameParts.slice(1).join(" ") || "",
+        email: profileData.email,
+        cellphone: profileData.phone,
+        role: "ROLE_INSTRUCTOR",
+        password: "oauth_user_secret",
+        urlPhoto: fileUrl,
+      };
+
+      const updateRes = await fetch(`/api/proxy/users/${session.dbId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(userPayload),
+      });
+
+      if (updateRes.ok) {
+        setProfileData(prev => ({ ...prev, avatarUrl: fileUrl }));
+        try { localStorage.setItem("custom_avatar", fileUrl); } catch (_) {}
+        try {
+          window.dispatchEvent(new CustomEvent("avatar-updated", { detail: { url: fileUrl } }));
+        } catch (_) {}
+        alert("Foto de perfil actualizada correctamente");
+        return fileUrl;
+      } else {
+        alert("Error guardando la foto en el servidor");
+        return null;
+      }
+    } catch (err) {
+      console.error("Error subiendo avatar:", err);
+      alert("Error critico al subir la imagen");
+      return null;
+    }
+  };
+
   return (
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500 pb-20 md:pb-0">
       <div>
@@ -121,6 +179,7 @@ export default function InstructorProfilePage() {
           initialData={profileData} 
           onUpdateProfile={handleUpdateProfile}
           onChangePassword={handleUpdatePassword}
+          onAvatarChange={handleAvatarUpload}
         />
       )}
     </div>
