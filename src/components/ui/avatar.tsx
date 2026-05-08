@@ -32,6 +32,10 @@ const Avatar = React.forwardRef<HTMLDivElement, AvatarProps>(
   ({ className, size, src, alt, fallback, ...props }, ref) => {
     const [imgError, setImgError] = React.useState(false)
 
+    React.useEffect(() => {
+      setImgError(false);
+    }, [src]);
+
     return (
       <div ref={ref} className={cn(avatarVariants({ size }), className)} {...props}>
         {src && !imgError ? (

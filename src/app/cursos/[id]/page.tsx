@@ -1,8 +1,6 @@
 import Link from "next/link";
-import Image from "next/image";
 import { notFound } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import LandingNav from "@/components/layout/landing-nav";
 import { CourseReviews } from "@/components/courses/course-reviews";
@@ -18,159 +16,104 @@ import {
   FileText,
   Award,
   ChevronRight,
-  ShieldCheck,
   UserCheck,
-  FileSignature,
   ChevronDown,
-  ThumbsUp,
-  ThumbsDown,
-  MoreVertical,
-  Image as ImageIcon
+  Image as ImageIcon,
 } from "lucide-react";
 
-// Mock data (in a real app, this would be fetched from a database)
-const coursesData = {
-  "prevencion-riesgos": {
-    title: "Prevención de Riesgos Laborales",
-    description: "Curso fundamental sobre normativas de seguridad, identificación de peligros, y control de riesgos en la industria.",
-    fullDescription: "En este curso aprenderás a identificar, evaluar y controlar los riesgos en el entorno laboral. Conocerás las normativas vigentes y cómo aplicar medidas preventivas eficaces para garantizar la seguridad y salud de todos los trabajadores.",
-    duration: "40 horas",
-    level: "Básico",
-    category: "Normativas",
-    rating: 4.8,
-    reviews: 1240,
-    students: 5430,
-    lastUpdated: "10/2025",
-    language: "Español",
-    instructor: {
-      name: "Ing. Carlos Mendoza",
-      avatar: "https://randomuser.me/api/portraits/men/32.jpg",
-      role: "Especialista en SST",
-      bio: "Ingeniero Industrial con más de 15 años de experiencia en gestión de seguridad y salud ocupacional en el sector minero y de construcción.",
-      rating: 4.9,
-      reviews: 3200,
-      students: 15000,
-      courses: 4
-    },
-    image: "https://images.unsplash.com/photo-1581091226825-a6a2a5aee158?q=80&w=800&auto=format&fit=crop",
-    price: "$49.99",
-    learningOutcomes: [
-      "Identificar los principales riesgos laborales en entornos industriales.",
-      "Aplicar la normativa legal vigente en materia de SST.",
-      "Diseñar matrices IPERC (Identificación de Peligros y Evaluación de Riesgos).",
-      "Implementar controles operacionales efectivos."
-    ],
-    syllabus: [
-      { title: "Módulo 1: Introducción a la Seguridad Industrial", duration: "2 horas" },
-      { title: "Módulo 2: Marco Legal y Normativo", duration: "4 horas" },
-      { title: "Módulo 3: Metodología IPERC", duration: "6 horas" },
-      { title: "Módulo 4: Medidas de Control y Prevención", duration: "8 horas" }
-    ]
-  },
-  "uso-correcto-epp": {
-    title: "Uso Correcto de EPP",
-    description: "Capacitación práctica en la selección, uso, mantenimiento y disposición final del Equipo de Protección Personal.",
-    fullDescription: "El uso adecuado del Equipo de Protección Personal (EPP) es la última línea de defensa contra los riesgos laborales. Este curso práctico te enseñará a seleccionar el EPP adecuado para cada tarea, cómo usarlo correctamente, mantenerlo y cuándo reemplazarlo.",
-    duration: "20 horas",
-    level: "Intermedio",
-    category: "Equipos",
-    rating: 4.9,
-    reviews: 856,
-    students: 3200,
-    lastUpdated: "11/2025",
-    language: "Español",
-    instructor: {
-      name: "Lic. Ana Torres",
-      avatar: "https://randomuser.me/api/portraits/women/44.jpg",
-      role: "Auditora HSEQ",
-      bio: "Licenciada en Seguridad e Higiene con amplia experiencia en la implementación de programas de EPP en la industria manufacturera.",
-      rating: 4.8,
-      reviews: 2100,
-      students: 8500,
-      courses: 3
-    },
-    image: "https://images.unsplash.com/photo-1581092160562-40aa08e78837?q=80&w=800&auto=format&fit=crop",
-    price: "$29.99",
-    learningOutcomes: [
-      "Clasificar los diferentes tipos de EPP según el riesgo.",
-      "Realizar el ajuste y colocación correcta de equipos.",
-      "Inspeccionar el EPP antes, durante y después de su uso.",
-      "Establecer programas de mantenimiento y limpieza."
-    ],
-    syllabus: [
-      { title: "Módulo 1: Fundamentos del EPP", duration: "2 horas" },
-      { title: "Módulo 2: Protección Auditiva y Visual", duration: "4 horas" },
-      { title: "Módulo 3: Protección Respiratoria", duration: "4 horas" },
-      { title: "Módulo 4: Protección contra Caídas", duration: "6 horas" }
-    ]
-  },
-  "auditor-interno-45001": {
-    title: "Auditor Interno ISO 45001",
-    description: "Formación especializada para preparar y ejecutar auditorías internas en sistemas de gestión de seguridad y salud en el trabajo.",
-    fullDescription: "Conviértete en un auditor interno certificado bajo la norma ISO 45001:2018. Aprenderás las técnicas de auditoría, cómo planificar, ejecutar y reportar los hallazgos para asegurar la mejora continua del sistema de gestión de SST de tu organización.",
-    duration: "60 horas",
-    level: "Avanzado",
-    category: "Auditoría",
-    rating: 4.7,
-    reviews: 512,
-    students: 1800,
-    lastUpdated: "09/2025",
-    language: "Español",
-    instructor: {
-      name: "Dr. Roberto Silva",
-      avatar: "https://randomuser.me/api/portraits/men/67.jpg",
-      role: "Lead Auditor ISO 45001",
-      bio: "Auditor Líder Certificado con más de 20 años de experiencia auditando sistemas integrados de gestión en corporaciones multinacionales.",
-      rating: 4.9,
-      reviews: 1800,
-      students: 5000,
-      courses: 2
-    },
-    image: "https://images.unsplash.com/photo-1504328345606-18bbc8c9d7d1?q=80&w=800&auto=format&fit=crop",
-    price: "$99.99",
-    learningOutcomes: [
-      "Interpretar los requisitos de la norma ISO 45001:2018.",
-      "Planificar y preparar una auditoría interna efectiva.",
-      "Conducir reuniones de apertura y cierre.",
-      "Redactar no conformidades y reportes de auditoría claros."
-    ],
-    syllabus: [
-      { title: "Módulo 1: Interpretación de ISO 45001:2018", duration: "10 horas" },
-      { title: "Módulo 2: Directrices de Auditoría ISO 19011", duration: "8 horas" },
-      { title: "Módulo 3: Planificación y Preparación", duration: "12 horas" },
-      { title: "Módulo 4: Ejecución y Reporte (Casos Prácticos)", duration: "15 horas" }
-    ]
+interface LectureFromAPI {
+  title: string;
+  duration?: number;
+  lectureType?: string;
+  contentUrl?: string;
+  isPreview?: boolean;
+}
+
+interface SectionFromAPI {
+  title: string;
+  lectureList?: LectureFromAPI[];
+}
+
+interface CourseDetailFromAPI {
+  id?: string;
+  _id?: string;
+  title: string;
+  subtitle: string;
+  coverImageUrl?: string;
+  teacher: { id: string; name: string; profession: string };
+  details: {
+    language: string;
+    level: string;
+    totalDurationHorus: number;
+    totalLecture: number;
+    precio: number;
+    lastUpdated: string;
+  };
+  reviews: {
+    averageRating: number;
+    totalReviews: number;
+  };
+  sectionList?: SectionFromAPI[];
+  requirements?: string[];
+  learningOutcomes?: string[];
+}
+
+async function getCourse(id: string): Promise<CourseDetailFromAPI | null> {
+  const url = `${process.env.API_URL}/api/v1/course/${id}`;
+  try {
+    const res = await fetch(url, { cache: "no-store" });
+    if (!res.ok) {
+      const body = await res.text().catch(() => "");
+      console.error(`[/cursos/${id}] Backend ${res.status}:`, body);
+      return null;
+    }
+    return await res.json();
+  } catch (err) {
+    console.error(`[/cursos/${id}] Fetch failed for ${url}:`, err);
+    return null;
   }
-};
+}
 
 export default async function CourseDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const course = coursesData[id as keyof typeof coursesData];
+  const course = await getCourse(id);
 
-  if (!course) {
-    notFound();
-  }
+  if (!course) notFound();
+
+  const courseId = course._id ?? course.id ?? id;
+  const price = course.details?.precio ? `$${course.details.precio.toFixed(2)}` : "$0.00";
+  const rating = course.reviews?.averageRating ?? 0;
+  const reviewCount = course.reviews?.totalReviews ?? 0;
+  const duration = course.details?.totalDurationHorus ? `${course.details.totalDurationHorus} h` : "—";
+  const totalLectures = course.details?.totalLecture ?? 0;
+  const sections = course.sectionList ?? [];
+  const outcomes = course.learningOutcomes ?? [];
+  const requirements = course.requirements ?? [];
+
+  const formatLectureDuration = (seconds?: number) => {
+    if (!seconds) return "";
+    const m = Math.floor(seconds / 60);
+    const s = Math.floor(seconds % 60);
+    return m > 0 ? `${m}:${s.toString().padStart(2, "0")} min` : `${s}s`;
+  };
 
   return (
     <div className="flex min-h-screen flex-col bg-background">
       <LandingNav />
 
-      {/* ======================== HERO SECTION (Dark Banner) ======================== */}
+      {/* HERO */}
       <section className="relative bg-slate-950 pt-32 pb-16 px-4 sm:px-6 lg:px-8 border-b border-slate-800">
-        <div className="absolute inset-0 bg-[url('/images/grid-pattern.svg')] opacity-5"></div>
+        <div className="absolute inset-0 bg-[url('/images/grid-pattern.svg')] opacity-5" />
         <div className="absolute top-0 right-0 h-[500px] w-[500px] rounded-full bg-primary/5 blur-[120px]" />
 
         <div className="mx-auto max-w-7xl relative z-10 grid grid-cols-1 lg:grid-cols-3 gap-12 items-start">
-
-          {/* Main Content Area */}
           <div className="lg:col-span-2">
-            {/* Breadcrumb */}
             <nav className="flex items-center text-sm text-amber-400 font-medium mb-6">
               <Link href="/" className="hover:text-amber-300 transition-colors">Inicio</Link>
               <ChevronRight className="h-4 w-4 mx-2" />
               <Link href="/cursos" className="hover:text-amber-300 transition-colors">Cursos</Link>
               <ChevronRight className="h-4 w-4 mx-2" />
-              <span className="text-slate-400">{course.category}</span>
+              <span className="text-slate-400">{course.details?.level ?? "Curso"}</span>
             </nav>
 
             <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-white leading-tight mb-4">
@@ -178,164 +121,196 @@ export default async function CourseDetailPage({ params }: { params: Promise<{ i
             </h1>
 
             <p className="text-lg text-slate-300 mb-6 leading-relaxed">
-              {course.description}
+              {course.subtitle}
             </p>
 
-            {/* Ratings & Stats */}
             <div className="flex flex-wrap items-center gap-x-6 gap-y-3 mb-6">
               <div className="flex items-center gap-2">
-                <span className="text-amber-400 font-bold">{course.rating}</span>
+                <span className="text-amber-400 font-bold">{rating.toFixed(1)}</span>
                 <div className="flex text-amber-400">
                   {[1, 2, 3, 4, 5].map((star) => (
-                    <Star key={star} className={`h-4 w-4 ${star <= Math.floor(course.rating) ? 'fill-current' : 'text-slate-600'}`} />
+                    <Star key={star} className={`h-4 w-4 ${star <= Math.floor(rating) ? "fill-current" : "text-slate-600"}`} />
                   ))}
                 </div>
                 <span className="text-slate-400 underline decoration-slate-600 hover:text-slate-300 cursor-pointer">
-                  ({course.reviews.toLocaleString()} valoraciones)
+                  ({reviewCount.toLocaleString()} valoraciones)
                 </span>
               </div>
-              <div className="text-slate-300">
-                {course.students.toLocaleString()} estudiantes
-              </div>
+              {totalLectures > 0 && (
+                <div className="text-slate-300 flex items-center gap-1.5">
+                  <GraduationCap className="h-4 w-4" /> {totalLectures} lecciones
+                </div>
+              )}
             </div>
 
-            {/* Meta Info */}
             <div className="flex flex-wrap items-center gap-4 text-sm text-slate-400 mb-8">
+              <Badge variant="secondary" className="bg-slate-800 text-slate-300 border-slate-700 hover:bg-slate-700">
+                Creado por {course.teacher?.name ?? "Instructor"}
+              </Badge>
+              {course.details?.lastUpdated && (
+                <div className="flex items-center gap-1.5">
+                  <Clock className="h-4 w-4" /> Última actualización {course.details.lastUpdated}
+                </div>
+              )}
               <div className="flex items-center gap-1.5">
-                <Badge variant="secondary" className="bg-slate-800 text-slate-300 border-slate-700 hover:bg-slate-700">
-                  Creado por {course.instructor.name}
-                </Badge>
-              </div>
-              <div className="flex items-center gap-1.5">
-                <Clock className="h-4 w-4" /> Última actualización {course.lastUpdated}
-              </div>
-              <div className="flex items-center gap-1.5">
-                <Globe className="h-4 w-4" /> {course.language}
+                <Globe className="h-4 w-4" /> {course.details?.language ?? "Español"}
               </div>
             </div>
           </div>
         </div>
       </section>
 
-      {/* ======================== MAIN CONTENT ======================== */}
+      {/* MAIN CONTENT */}
       <section className="py-12 px-4 sm:px-6 lg:px-8">
         <div className="mx-auto max-w-7xl grid grid-cols-1 lg:grid-cols-3 gap-12 items-start">
 
           <div className="lg:col-span-2 space-y-12">
 
-            {/* Learning Outcomes Box */}
-            <div className="border border-slate-700/50 bg-surface-secondary/20 p-6 sm:p-8 rounded-xl">
-              <h2 className="text-2xl font-bold text-foreground mb-6">Lo que aprenderás</h2>
-              <div className="grid sm:grid-cols-2 gap-4">
-                {course.learningOutcomes.map((outcome, idx) => (
-                  <div key={idx} className="flex gap-3 items-start">
-                    <CheckCircle2 className="h-5 w-5 text-amber-500 shrink-0 mt-0.5" />
-                    <span className="text-slate-300 text-sm leading-relaxed">{outcome}</span>
-                  </div>
-                ))}
+            {/* Learning Outcomes */}
+            {outcomes.length > 0 && (
+              <div className="border border-slate-700/50 bg-surface-secondary/20 p-6 sm:p-8 rounded-xl">
+                <h2 className="text-2xl font-bold text-foreground mb-6">Lo que aprenderás</h2>
+                <div className="grid sm:grid-cols-2 gap-4">
+                  {outcomes.map((outcome, idx) => (
+                    <div key={idx} className="flex gap-3 items-start">
+                      <CheckCircle2 className="h-5 w-5 text-amber-500 shrink-0 mt-0.5" />
+                      <span className="text-slate-300 text-sm leading-relaxed">{outcome}</span>
+                    </div>
+                  ))}
+                </div>
               </div>
-            </div>
+            )}
 
-            {/* Instructor Profile (Udemy Style) */}
+            {/* Instructor */}
             <div>
               <h2 className="text-2xl font-bold text-foreground mb-6">Instructor</h2>
               <div className="flex flex-col gap-4">
-                <Link href="#" className="text-xl font-bold text-amber-400 hover:text-amber-300 underline underline-offset-4 decoration-amber-500/30">
-                  {course.instructor.name}
-                </Link>
-                <div className="text-slate-400">{course.instructor.role}</div>
-
+                <span className="text-xl font-bold text-amber-400">{course.teacher?.name ?? "Instructor"}</span>
+                <div className="text-slate-400">{course.teacher?.profession ?? ""}</div>
                 <div className="flex items-center gap-6 mt-2 mb-4">
                   <div className="relative h-28 w-28 rounded-full overflow-hidden border-2 border-slate-700 shrink-0 bg-slate-800 flex items-center justify-center">
-                    <ImageIcon className="h-10 w-10 text-slate-600" />
+                    <span className="text-4xl font-bold text-amber-400">
+                      {(course.teacher?.name ?? "I").charAt(0).toUpperCase()}
+                    </span>
                   </div>
                   <ul className="space-y-2 text-sm text-slate-300">
-                    <li className="flex items-center gap-3"><Star className="h-4 w-4 text-amber-500" /> {course.instructor.rating} Calificación del instructor</li>
-                    <li className="flex items-center gap-3"><Award className="h-4 w-4 text-amber-500" /> {course.instructor.reviews.toLocaleString()} Reseñas</li>
-                    <li className="flex items-center gap-3"><UserCheck className="h-4 w-4 text-amber-500" /> {course.instructor.students.toLocaleString()} Estudiantes</li>
-                    <li className="flex items-center gap-3"><PlayCircle className="h-4 w-4 text-amber-500" /> {course.instructor.courses} Cursos</li>
+                    <li className="flex items-center gap-3">
+                      <Star className="h-4 w-4 text-amber-500" /> {rating.toFixed(1)} Calificación del curso
+                    </li>
+                    <li className="flex items-center gap-3">
+                      <Award className="h-4 w-4 text-amber-500" /> {reviewCount.toLocaleString()} Reseñas
+                    </li>
+                    {totalLectures > 0 && (
+                      <li className="flex items-center gap-3">
+                        <PlayCircle className="h-4 w-4 text-amber-500" /> {totalLectures} Lecciones
+                      </li>
+                    )}
+                    {sections.length > 0 && (
+                      <li className="flex items-center gap-3">
+                        <UserCheck className="h-4 w-4 text-amber-500" /> {sections.length} Módulos
+                      </li>
+                    )}
                   </ul>
                 </div>
-
-                <p className="text-sm text-slate-300 leading-relaxed max-w-3xl">
-                  {course.instructor.bio}
-                </p>
               </div>
             </div>
 
-            {/* Requirements / Description */}
-            <div>
-              <h2 className="text-2xl font-bold text-foreground mb-4">Requisitos</h2>
-              <ul className="list-disc pl-5 text-slate-300 text-sm space-y-2 mb-8 marker:text-slate-500">
-                <li>Conocimientos básicos de operaciones industriales.</li>
-                <li>Disposición para aprender y aplicar normativas de seguridad.</li>
-                <li>No se requiere experiencia previa en auditorías para cursos básicos.</li>
-              </ul>
+            {/* Requirements */}
+            {requirements.length > 0 && (
+              <div>
+                <h2 className="text-2xl font-bold text-foreground mb-4">Requisitos</h2>
+                <ul className="list-disc pl-5 text-slate-300 text-sm space-y-2 marker:text-slate-500">
+                  {requirements.map((req, idx) => (
+                    <li key={idx}>{req}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
 
+            {/* Description */}
+            <div>
               <h2 className="text-2xl font-bold text-foreground mb-4">Descripción</h2>
-              <p className="text-slate-300 text-sm leading-relaxed whitespace-pre-line mb-10">
-                {course.fullDescription}
-                <br /><br />
-                Este programa está diseñado para profesionales que buscan destacar en la gestión de la seguridad, garantizando entornos de trabajo libres de accidentes y cumpliendo con los más altos estándares internacionales.
+              <p className="text-slate-300 text-sm leading-relaxed whitespace-pre-line">
+                {course.subtitle}
               </p>
             </div>
 
-            {/* Syllabus Accordion (Temario) */}
-            <div>
-              <div className="flex items-end justify-between mb-6">
-                <h2 className="text-2xl font-bold text-foreground">Contenido del curso</h2>
-                <span className="text-sm text-slate-400">{course.syllabus.length} secciones • {course.duration} de duración total</span>
-              </div>
+            {/* Syllabus */}
+            {sections.length > 0 && (
+              <div>
+                <div className="flex items-end justify-between mb-6">
+                  <h2 className="text-2xl font-bold text-foreground">Contenido del curso</h2>
+                  <span className="text-sm text-slate-400">{sections.length} secciones • {duration} de duración total</span>
+                </div>
 
-              <div className="flex flex-col border border-slate-700/50 rounded-xl overflow-hidden bg-surface-secondary/10">
-                {course.syllabus.map((module, idx) => (
-                  <details key={idx} className="group border-b border-slate-700/50 last:border-b-0">
-                    <summary className="flex items-center justify-between p-4 sm:p-5 cursor-pointer bg-surface/50 hover:bg-surface transition-colors list-none">
-                      <div className="flex items-center gap-3">
-                        <ChevronDown className="h-4 w-4 text-slate-400 transition-transform duration-300 group-open:-rotate-180" />
-                        <span className="font-semibold text-slate-200 group-hover:text-amber-400 transition-colors">{module.title}</span>
+                <div className="flex flex-col border border-slate-700/50 rounded-xl overflow-hidden bg-surface-secondary/10">
+                  {sections.map((section, idx) => (
+                    <details key={idx} className="group border-b border-slate-700/50 last:border-b-0">
+                      <summary className="flex items-center justify-between p-4 sm:p-5 cursor-pointer bg-surface/50 hover:bg-surface transition-colors list-none">
+                        <div className="flex items-center gap-3">
+                          <ChevronDown className="h-4 w-4 text-slate-400 transition-transform duration-300 group-open:-rotate-180" />
+                          <span className="font-semibold text-slate-200 group-hover:text-amber-400 transition-colors">
+                            {section.title}
+                          </span>
+                        </div>
+                        <span className="text-xs text-slate-400 font-medium">
+                          {section.lectureList?.length ?? 0} lecciones
+                        </span>
+                      </summary>
+                      <div className="p-4 sm:px-12 sm:pb-5 bg-surface-secondary/5 text-sm text-slate-400">
+                        {section.lectureList && section.lectureList.length > 0 ? (
+                          <ul className="space-y-3">
+                            {section.lectureList.map((lecture, lIdx) => (
+                              <li key={lIdx} className="flex items-start justify-between gap-3">
+                                <div className="flex items-start gap-3">
+                                  {lecture.lectureType === "PDF" ? (
+                                    <FileText className="h-4 w-4 text-slate-500 shrink-0 mt-0.5" />
+                                  ) : (
+                                    <PlayCircle className="h-4 w-4 text-slate-500 shrink-0 mt-0.5" />
+                                  )}
+                                  <span>{lecture.title}</span>
+                                </div>
+                                {lecture.duration ? (
+                                  <span className="text-xs text-slate-500 shrink-0">
+                                    {formatLectureDuration(lecture.duration)}
+                                  </span>
+                                ) : null}
+                              </li>
+                            ))}
+                          </ul>
+                        ) : (
+                          <p className="text-slate-500 italic text-xs">Sin lecciones aún.</p>
+                        )}
                       </div>
-                      <span className="text-xs text-slate-400 font-medium">{module.duration}</span>
-                    </summary>
-                    <div className="p-4 sm:px-12 sm:pb-5 bg-surface-secondary/5 text-sm text-slate-400">
-                      <ul className="space-y-3">
-                        <li className="flex items-start gap-3">
-                          <PlayCircle className="h-4 w-4 text-slate-500 shrink-0 mt-0.5" />
-                          <span>Lección 1: Introducción a los conceptos clave</span>
-                        </li>
-                        <li className="flex items-start gap-3">
-                          <PlayCircle className="h-4 w-4 text-slate-500 shrink-0 mt-0.5" />
-                          <span>Lección 2: Casos de estudio y aplicación práctica</span>
-                        </li>
-                        <li className="flex items-start gap-3">
-                          <FileText className="h-4 w-4 text-slate-500 shrink-0 mt-0.5" />
-                          <span>Material de lectura complementario (PDF)</span>
-                        </li>
-                      </ul>
-                    </div>
-                  </details>
-                ))}
+                    </details>
+                  ))}
+                </div>
               </div>
-            </div>
+            )}
 
-            {/* Reviews Section */}
+            {/* Reviews */}
             <CourseReviews
-              courseRating={course.rating}
-              courseReviewCount={course.reviews}
-              instructorName={course.instructor.name}
+              courseRating={rating}
+              courseReviewCount={reviewCount}
+              instructorName={course.teacher?.name ?? "Instructor"}
             />
-
           </div>
 
-          {/* Desktop version of the sticky floating card */}
+          {/* Sticky purchase card - Desktop */}
           <div className="hidden lg:block">
             <div className="sticky top-28 -mt-[420px] w-full max-w-[380px] ml-auto bg-surface rounded-xl border border-slate-700 shadow-2xl overflow-hidden z-30">
-              <div className="relative h-56 w-full group cursor-pointer border-b border-slate-700 bg-slate-800">
-                <div className="absolute inset-0 flex items-center justify-center">
+              <div className="relative h-56 w-full border-b border-slate-700 bg-slate-800 flex items-center justify-center">
+                {course.coverImageUrl ? (
+                  <img
+                    src={course.coverImageUrl}
+                    alt={course.title}
+                    className="absolute inset-0 h-full w-full object-cover"
+                  />
+                ) : (
                   <ImageIcon className="h-16 w-16 text-slate-600" />
-                </div>
-                <div className="absolute inset-0 bg-slate-950/40 group-hover:bg-slate-950/20 transition-colors flex items-center justify-center">
-                  <div className="h-16 w-16 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center group-hover:scale-110 transition-transform">
+                )}
+                <div className="absolute inset-0 bg-slate-950/40 hover:bg-slate-950/20 transition-colors flex items-center justify-center">
+                  <div className="h-16 w-16 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center hover:scale-110 transition-transform">
                     <PlayCircle className="h-10 w-10 text-white" />
                   </div>
                 </div>
@@ -344,13 +319,13 @@ export default async function CourseDetailPage({ params }: { params: Promise<{ i
                 </div>
               </div>
               <div className="p-6">
-                <div className="text-3xl font-bold text-foreground mb-6">{course.price}</div>
+                <div className="text-3xl font-bold text-foreground mb-6">{price}</div>
                 <AddToCartButton
-                  courseId={id}
+                  courseId={courseId}
                   title={course.title}
-                  price={course.price}
-                  image={course.image}
-                  instructorName={course.instructor.name}
+                  price={price}
+                  image={course.coverImageUrl ?? ""}
+                  instructorName={course.teacher?.name ?? "Instructor"}
                 />
                 <Button variant="outline" className="w-full mb-6 h-12 border-slate-600 hover:bg-slate-800">
                   Comprar ahora
@@ -361,13 +336,23 @@ export default async function CourseDetailPage({ params }: { params: Promise<{ i
 
                 <h4 className="font-semibold text-foreground mb-3">Este curso incluye:</h4>
                 <ul className="space-y-3 text-sm text-slate-300 mb-6">
-                  <li className="flex items-center gap-3"><MonitorPlay className="h-4 w-4 text-slate-400" /> {course.duration} de video bajo demanda</li>
-                  <li className="flex items-center gap-3"><FileText className="h-4 w-4 text-slate-400" /> 14 recursos descargables</li>
-                  <li className="flex items-center gap-3"><Globe className="h-4 w-4 text-slate-400" /> Acceso en dispositivos móviles y TV</li>
-                  <li className="flex items-center gap-3"><Award className="h-4 w-4 text-slate-400" /> Certificado de finalización</li>
+                  <li className="flex items-center gap-3">
+                    <MonitorPlay className="h-4 w-4 text-slate-400" /> {duration} de video bajo demanda
+                  </li>
+                  {totalLectures > 0 && (
+                    <li className="flex items-center gap-3">
+                      <FileText className="h-4 w-4 text-slate-400" /> {totalLectures} lecciones
+                    </li>
+                  )}
+                  <li className="flex items-center gap-3">
+                    <Globe className="h-4 w-4 text-slate-400" /> Acceso en dispositivos móviles y TV
+                  </li>
+                  <li className="flex items-center gap-3">
+                    <Award className="h-4 w-4 text-slate-400" /> Certificado de finalización
+                  </li>
                 </ul>
 
-                <div className="border-t border-slate-700 pt-4 flex items-center justify-between">
+                <div className="border-t border-slate-700 pt-4">
                   <Link href="#" className="text-sm font-semibold text-slate-300 hover:text-white transition-colors underline underline-offset-4 decoration-slate-600">
                     Aplicar cupón
                   </Link>
@@ -376,17 +361,17 @@ export default async function CourseDetailPage({ params }: { params: Promise<{ i
             </div>
           </div>
 
-          {/* Mobile version of the floating card */}
+          {/* Purchase card - Mobile */}
           <div className="block lg:hidden mt-8">
             <div className="w-full bg-surface rounded-xl border border-slate-700 shadow-xl overflow-hidden">
               <div className="p-6">
-                <div className="text-3xl font-bold text-foreground mb-6">{course.price}</div>
+                <div className="text-3xl font-bold text-foreground mb-6">{price}</div>
                 <AddToCartButton
-                  courseId={id}
+                  courseId={courseId}
                   title={course.title}
-                  price={course.price}
-                  image={course.image}
-                  instructorName={course.instructor.name}
+                  price={price}
+                  image={course.coverImageUrl ?? ""}
+                  instructorName={course.teacher?.name ?? "Instructor"}
                 />
                 <Button variant="outline" className="w-full mb-6 h-12 border-slate-600 hover:bg-slate-800">
                   Comprar ahora
@@ -406,7 +391,6 @@ export default async function CourseDetailPage({ params }: { params: Promise<{ i
         </div>
       </section>
 
-      {/* Footer */}
       <footer className="border-t border-slate-800 bg-surface px-6 py-10 mt-auto">
         <div className="mx-auto max-w-7xl text-center text-sm text-muted">
           &copy; 2026 PrevenciónTech. Todos los derechos reservados.

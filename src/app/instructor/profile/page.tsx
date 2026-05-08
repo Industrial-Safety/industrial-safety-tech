@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { ProfileSettings, UserProfileData } from "@/components/shared/profile-settings";
 import { useSession } from "next-auth/react";
 import { Loader2 } from "lucide-react";
+import { toast } from "sonner";
 
 export default function InstructorProfilePage() {
   const { data: session } = useSession();
@@ -51,12 +52,13 @@ export default function InstructorProfilePage() {
   const handleUpdateProfile = async (updatedFields: Partial<UserProfileData>) => {
     if (!session?.dbId) return;
     try {
-      // Mapeamos de vuelta al formato que espera el Backend (UserRequest/UserUpdateRequest)
+      const nameParts = (updatedFields.name ?? profileData.name).trim().split(" ");
       const payload = {
-        name: updatedFields.name?.split(" ")[0],
-        lastName: updatedFields.name?.split(" ").slice(1).join(" "),
-        cellphone: updatedFields.phone,
-        // ... otros campos
+        name: nameParts[0] ?? "",
+        lastName: nameParts.slice(1).join(" ") ?? "",
+        cellphone: updatedFields.phone ?? profileData.phone,
+        role: "ROLE_INSTRUCTOR",
+        urlPhoto: profileData.avatarUrl ?? "",
       };
 
       const res = await fetch(`/api/proxy/users/admin/${session.dbId}`, {
@@ -66,10 +68,19 @@ export default function InstructorProfilePage() {
       });
 
       if (res.ok) {
-        alert("Perfil actualizado correctamente");
+        const updated = await res.json();
+        setProfileData(prev => ({
+          ...prev,
+          name: `${updated.name ?? ""} ${updated.lastName ?? ""}`.trim(),
+          phone: updated.cellphone ?? prev.phone,
+        }));
+        toast.success("Perfil actualizado correctamente");
+      } else {
+        toast.error("Error al actualizar el perfil");
       }
     } catch (err) {
       console.error("Error actualizando perfil:", err);
+      toast.error("Error de conexión");
     }
   };
 
@@ -135,14 +146,12 @@ export default function InstructorProfilePage() {
       const userPayload = {
         name: nameParts[0] || "",
         lastName: nameParts.slice(1).join(" ") || "",
-        email: profileData.email,
         cellphone: profileData.phone,
         role: "ROLE_INSTRUCTOR",
-        password: "oauth_user_secret",
         urlPhoto: fileUrl,
       };
 
-      const updateRes = await fetch(`/api/proxy/users/${session.dbId}`, {
+      const updateRes = await fetch(`/api/proxy/users/admin/${session.dbId}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(userPayload),
@@ -154,15 +163,15 @@ export default function InstructorProfilePage() {
         try {
           window.dispatchEvent(new CustomEvent("avatar-updated", { detail: { url: fileUrl } }));
         } catch (_) {}
-        alert("Foto de perfil actualizada correctamente");
+        toast.success("Foto de perfil actualizada");
         return fileUrl;
       } else {
-        alert("Error guardando la foto en el servidor");
+        toast.error("Error guardando la foto en el servidor");
         return null;
       }
     } catch (err) {
       console.error("Error subiendo avatar:", err);
-      alert("Error critico al subir la imagen");
+      toast.error("Error crítico al subir la imagen");
       return null;
     }
   };

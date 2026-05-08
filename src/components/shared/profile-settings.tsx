@@ -45,7 +45,14 @@ export function ProfileSettings({ initialData, onUpdateProfile, onChangePassword
   const handleAvatarFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    setAvatarPreview(URL.createObjectURL(file));
+
+    // Mostrar preview local inmediatamente con FileReader (más estable que createObjectURL)
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      if (ev.target?.result) setAvatarPreview(ev.target.result as string);
+    };
+    reader.readAsDataURL(file);
+
     if (onAvatarChange) {
       setUploadingAvatar(true);
       try {
@@ -53,6 +60,7 @@ export function ProfileSettings({ initialData, onUpdateProfile, onChangePassword
         if (newUrl) setAvatarPreview(newUrl);
       } finally {
         setUploadingAvatar(false);
+        e.target.value = "";
       }
     }
   };
@@ -170,10 +178,8 @@ export function ProfileSettings({ initialData, onUpdateProfile, onChangePassword
                   <Input
                     value={formData.name}
                     onChange={e => setFormData({...formData, name: e.target.value})}
-                    readOnly={true}
-                    className="bg-surface-secondary/50 select-none"
+                    className="bg-surface-secondary/50"
                   />
-                  <p className="text-[10px] text-muted ml-6">El nombre oficial es manejado por el sistema.</p>
                 </div>
 
                 <div className="space-y-2">

@@ -57,8 +57,9 @@ Thumbs.db
 .AppleDouble
 .LSOverride
 
-# Qwen
+# AI assistants
 .qwen/
+.claude/
 
 # Logs
 logs/
