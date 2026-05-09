@@ -3,6 +3,7 @@ import { Inter } from "next/font/google";
 import "./globals.css";
 import { CartProvider } from "@/components/providers/cart-provider";
 import { AuthProvider } from "@/components/providers/session-provider";
+import { NotificationsProvider } from "@/components/providers/notifications-provider";
 import { Toaster } from "sonner";
 
 const inter = Inter({
@@ -25,10 +26,12 @@ export default function RootLayout({
     <html lang="es" data-scroll-behavior="smooth" className={`${inter.variable} h-full bg-background antialiased`}>
       <body className="min-h-full flex flex-col font-sans text-foreground">
         <AuthProvider>
-          <CartProvider>
-            {children}
-          </CartProvider>
-          <Toaster richColors position="bottom-right" />
+          <NotificationsProvider>
+            <CartProvider>
+              {children}
+            </CartProvider>
+            <Toaster richColors position="bottom-right" />
+          </NotificationsProvider>
         </AuthProvider>
       </body>
     </html>

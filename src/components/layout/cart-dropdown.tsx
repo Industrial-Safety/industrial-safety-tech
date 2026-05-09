@@ -68,7 +68,9 @@ export function CartDropdown() {
                         {item.title}
                       </Link>
                       <div className="text-xs text-slate-400 mt-1 line-clamp-1">{item.instructorName}</div>
-                      <div className="font-bold text-foreground mt-2">{item.price}</div>
+                      <div className="font-bold text-foreground mt-2">
+                        S/ {parseFloat(item.price.replace('$', '')).toFixed(2)}
+                      </div>
                     </div>
                     <button 
                       onClick={(e) => {
@@ -90,7 +92,7 @@ export function CartDropdown() {
               <div className="flex items-center justify-between font-bold text-lg mb-4 text-foreground">
                 <span className="text-slate-400 text-base">Total:</span>
                 <span className="text-amber-500 text-xl">
-                  ${cart.reduce((acc, item) => acc + parseFloat(item.price.replace('$', '')), 0).toFixed(2)}
+                  S/ {cart.reduce((acc, item) => acc + parseFloat(item.price.replace('$', '')), 0).toFixed(2)}
                 </span>
               </div>
               <div className="flex flex-col gap-2">
