@@ -11,7 +11,7 @@ function LoginRedirectContent() {
   useEffect(() => {
     if (provider) {
       // Llamamos a signIn que hace la petición POST internamente y redirige al Keycloak real
-      signIn("keycloak", { callbackUrl: "/auth/success" }, { kc_idp_hint: provider });
+      signIn("keycloak", { callbackUrl: "/auth/success" }, { kc_idp_hint: provider, prompt: "select_account" });
     }
   }, [provider]);
 

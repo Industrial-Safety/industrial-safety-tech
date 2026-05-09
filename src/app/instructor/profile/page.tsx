@@ -23,20 +23,32 @@ export default function InstructorProfilePage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    if (!session?.dbId) return;
     const fetchUserData = async () => {
-      if (!session?.dbId) return;
       try {
         const res = await fetch(`/api/proxy/users/${session.dbId}`);
         if (res.ok) {
           const data = await res.json();
           setProfileData({
             id: data.id,
-            name: `${data.name} ${data.lastName}`,
+            name: `${data.name} ${data.lastName}`.trim(),
             email: data.email,
-            phone: data.cellphone || "Sin teléfono",
+            phone: data.cellphone || "",
             role: data.role === "ROLE_INSTRUCTOR" ? "Instructor" : data.role,
-            department: data.department || "Área Técnica",
+            department: data.department || "",
             avatarUrl: data.urlPhoto || session?.user?.image || "https://images.unsplash.com/photo-1560250097-0b93528c311a?w=150&h=150&fit=crop&crop=faces"
+          });
+        } else {
+          console.error("Error cargando perfil, status:", res.status);
+          // Fallback: usar datos de la sesión
+          setProfileData({
+            id: session.dbId?.toString() || "",
+            name: session.user?.name || "",
+            email: session.user?.email || "",
+            phone: "",
+            role: "Instructor",
+            department: "",
+            avatarUrl: session.user?.image || "https://images.unsplash.com/photo-1560250097-0b93528c311a?w=150&h=150&fit=crop&crop=faces"
           });
         }
       } catch (err) {
@@ -45,18 +57,19 @@ export default function InstructorProfilePage() {
         setLoading(false);
       }
     };
-
     fetchUserData();
-  }, [session?.dbId, session?.user?.name, session?.user?.email, session?.user?.image]);
+  }, [session?.dbId]);
 
   const handleUpdateProfile = async (updatedFields: Partial<UserProfileData>) => {
     if (!session?.dbId) return;
     try {
       const nameParts = (updatedFields.name ?? profileData.name).trim().split(" ");
+      const firstName = nameParts[0] || "";
+      const lastName = nameParts.slice(1).join(" ") || firstName;
       const payload = {
-        name: nameParts[0] ?? "",
-        lastName: nameParts.slice(1).join(" ") ?? "",
-        cellphone: updatedFields.phone ?? profileData.phone,
+        name: firstName,
+        lastName,
+        cellphone: updatedFields.phone ?? profileData.phone ?? "",
         role: "ROLE_INSTRUCTOR",
         urlPhoto: profileData.avatarUrl ?? "",
       };
@@ -86,7 +99,7 @@ export default function InstructorProfilePage() {
 
   const handleUpdatePassword = async (currentPass: string, newPass: string) => {
     if (!(session as any)?.keycloakId) return;
-    
+
     try {
       const res = await fetch("/api/proxy/users/change-password", {
         method: "POST",
@@ -99,24 +112,23 @@ export default function InstructorProfilePage() {
       });
 
       if (res.ok) {
-        alert("¡Éxito! Tu contraseña ha sido actualizada. Por seguridad, debes volver a iniciar sesión.");
-        
-        // Ejecutamos el cierre de sesión federado (Keycloak + NextAuth)
-        const issuer = process.env.NEXT_PUBLIC_KEYCLOAK_ISSUER;
-        const clientId = process.env.NEXT_PUBLIC_KEYCLOAK_CLIENT_ID;
-        const postLogoutRedirectUri = encodeURIComponent(window.location.origin + "/login");
-        
-        window.location.href = `${issuer}/protocol/openid-connect/logout?client_id=${clientId}&post_logout_redirect_uri=${postLogoutRedirectUri}`;
+        toast.success("Contraseña actualizada. Cerrando sesión por seguridad...");
+        setTimeout(() => {
+          const issuer = process.env.NEXT_PUBLIC_KEYCLOAK_ISSUER;
+          const clientId = process.env.NEXT_PUBLIC_KEYCLOAK_CLIENT_ID;
+          const postLogoutRedirectUri = encodeURIComponent(window.location.origin + "/login");
+          window.location.href = `${issuer}/protocol/openid-connect/logout?client_id=${clientId}&post_logout_redirect_uri=${postLogoutRedirectUri}`;
+        }, 1500);
       } else {
         const error = await res.json();
-        // Si es un 400, casi siempre es porque no cumple la política de Keycloak
-        const message = res.status === 400 
-          ? "La contraseña es muy débil. Debe tener al menos 8 caracteres, una mayúscula y un símbolo."
-          : (error.message || "Error al actualizar");
-        alert(`Aviso de Seguridad: ${message}`);
+        const message = res.status === 400
+          ? "La contraseña no cumple los requisitos (mínimo 8 caracteres, una mayúscula y un símbolo)."
+          : (error.message || "Error al actualizar la contraseña");
+        toast.error(message);
       }
     } catch (err) {
       console.error("Error al cambiar contraseña:", err);
+      toast.error("Error de conexión al cambiar contraseña");
     }
   };
 
@@ -127,7 +139,7 @@ export default function InstructorProfilePage() {
         `/api/storage/upload-url?fileName=${encodeURIComponent("users/profile-photos/" + Date.now() + "-" + file.name)}&contentType=${encodeURIComponent(file.type)}`
       );
       if (!presignRes.ok) {
-        alert("Error obteniendo URL de subida");
+        toast.error("Error al obtener URL de subida");
         return null;
       }
       const { uploadUrl, fileUrl } = await presignRes.json();
@@ -138,7 +150,7 @@ export default function InstructorProfilePage() {
         body: file,
       });
       if (!s3Res.ok) {
-        alert("Error subiendo imagen a S3");
+        toast.error("Error al subir la imagen");
         return null;
       }
 
@@ -183,9 +195,14 @@ export default function InstructorProfilePage() {
         <p className="text-muted">Gestiona tu información pública como Instructor y tus credenciales.</p>
       </div>
 
-      {profileData && (
-        <ProfileSettings 
-          initialData={profileData} 
+      {loading ? (
+        <div className="flex justify-center py-20">
+          <Loader2 className="animate-spin h-8 w-8 text-primary" />
+        </div>
+      ) : (
+        <ProfileSettings
+          key={profileData.id}
+          initialData={profileData}
           onUpdateProfile={handleUpdateProfile}
           onChangePassword={handleUpdatePassword}
           onAvatarChange={handleAvatarUpload}

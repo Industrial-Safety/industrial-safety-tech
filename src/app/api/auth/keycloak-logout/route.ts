@@ -3,25 +3,37 @@ import { redirect } from "next/navigation";
 
 export async function GET() {
   const session = await auth();
-  const idToken = session?.idToken;
+  const refreshToken = (session as any)?.refreshToken;
 
-  // 1. Destruimos la sesión de NextAuth
-  await signOut({ redirect: false });
-
-  // 2. Construimos la URL de logout de Keycloak
-  const keycloakLogoutUrl = new URL(
-    `${process.env.KEYCLOAK_ISSUER}/protocol/openid-connect/logout`
-  );
-  keycloakLogoutUrl.searchParams.set("client_id", process.env.KEYCLOAK_CLIENT_ID!);
-  keycloakLogoutUrl.searchParams.set(
-    "post_logout_redirect_uri",
-    process.env.NEXTAUTH_URL ?? "http://localhost:3000"
-  );
-
-  // Con id_token_hint, Keycloak hace el logout SILENCIOSO (sin pantalla de confirmación)
-  if (idToken) {
-    keycloakLogoutUrl.searchParams.set("id_token_hint", idToken);
+  // 1. Back-channel logout a Keycloak (server → Keycloak, el usuario nunca lo ve)
+  if (refreshToken) {
+    try {
+      await fetch(
+        `${process.env.KEYCLOAK_ISSUER}/protocol/openid-connect/logout`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/x-www-form-urlencoded" },
+          body: new URLSearchParams({
+            client_id: process.env.KEYCLOAK_CLIENT_ID!,
+            client_secret: process.env.KEYCLOAK_CLIENT_SECRET!,
+            refresh_token: refreshToken,
+          }),
+        }
+      );
+    } catch {
+      // Si Keycloak no responde, igual destruimos la sesión local
+    }
   }
 
-  redirect(keycloakLogoutUrl.toString());
+  // 2. Destruir sesión de NextAuth
+  const idToken = (session as any)?.idToken;
+  await signOut({ redirect: false });
+
+  // 3. Front-channel logout: redirige al navegador a Keycloak para que limpie su cookie SSO
+  const appUrl = process.env.NEXTAUTH_URL ?? "http://localhost:3000";
+  const params = new URLSearchParams({ post_logout_redirect_uri: appUrl });
+  if (idToken) params.set("id_token_hint", idToken);
+  else params.set("client_id", process.env.KEYCLOAK_CLIENT_ID!);
+
+  redirect(`${process.env.KEYCLOAK_ISSUER}/protocol/openid-connect/logout?${params.toString()}`);
 }

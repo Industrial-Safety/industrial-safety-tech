@@ -66,7 +66,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
                             grant_type: "password",
                             username: credentials.email as string,
                             password: credentials.password as string,
-                            scope: "openid",
+                            scope: "openid roles",
                         }),
                     });
                     const tokens = await response.json();
@@ -126,11 +126,14 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
                 let isNewUser = false;
                 let newUserEmail: string | undefined = undefined;
                 let mustChangePassword = false;
+                // keycloakId resuelto desde la DB (admin API) para garantizar consistencia
+                let resolvedKeycloakId: string = (user as any).id || token.sub || "";
 
                 if (provider !== "credentials") {
-                    // Login OAuth: sincronizar con backend
+                    // Login OAuth: sincronizar con backend (obligatorio)
+                    let res: Response;
                     try {
-                        const res = await fetch(`${process.env.API_URL}/api/v1/users/register`, {
+                        res = await fetch(`${process.env.API_URL}/api/v1/users/register`, {
                             method: "POST",
                             headers: { "Content-Type": "application/json" },
                             body: JSON.stringify({
@@ -138,39 +141,82 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
                                 lastName: user.name?.split(" ").slice(1).join(" ") || "",
                                 email: user.email,
                                 password: "oauth_user_password",
-                                role: primaryRole
+                                role: primaryRole,
+                                // No enviamos keycloakId: el backend detecta 409 y llama assignRole()
                             })
                         });
-                        if (res.ok) {
-                            const dbUser = await res.json();
-                            dbId = dbUser.id;
-                            token.dbName = `${dbUser.name} ${dbUser.lastName}`;
-                            if (res.status === 201) {
-                                isNewUser = true;
-                                newUserEmail = user.email ?? undefined;
-                            }
-                            console.log("DEBUG [Auth]: Sincronización OAuth exitosa. ID DB:", dbId);
-                        }
                     } catch (err) {
-                        console.error("DEBUG [Auth]: Error sincronizando", err);
+                        console.error("DEBUG [Auth]: Backend no disponible en login OAuth", err);
+                        return { ...token, error: "BackendUnavailableError" };
                     }
+                    if (!res.ok) {
+                        console.error("DEBUG [Auth]: Backend rechazó el registro OAuth. Status:", res.status);
+                        return { ...token, error: "BackendUnavailableError" };
+                    }
+                    const dbUser = await res.json();
+                    dbId = dbUser.id;
+                    if (dbUser.keycloakId) resolvedKeycloakId = dbUser.keycloakId;
+                    token.dbName = `${dbUser.name} ${dbUser.lastName}`;
+                    if (res.status === 201) {
+                        isNewUser = true;
+                        newUserEmail = user.email ?? undefined;
+                    }
+                    console.log("DEBUG [Auth]: Sincronización OAuth exitosa. ID DB:", dbId, "keycloakId:", resolvedKeycloakId);
                 } else {
-                    // Login credentials: consultar DB para obtener dbId y mustChangePassword
+                    // Login credentials: consultar DB (obligatorio)
+                    let res: Response;
                     try {
-                        const res = await fetch(
+                        res = await fetch(
                             `${process.env.API_URL}/api/v1/users/by-email?email=${encodeURIComponent(user.email ?? "")}`,
                             { headers: { Authorization: `Bearer ${accessToken}` } }
                         );
-                        if (res.ok) {
-                            const dbUser = await res.json();
-                            dbId = dbUser.id;
-                            mustChangePassword = dbUser.mustChangePassword === true;
-                            token.dbName = `${dbUser.name} ${dbUser.lastName}`;
-                            console.log("DEBUG [Auth]: Login credentials. ID DB:", dbId, "mustChangePassword:", mustChangePassword);
-                        }
                     } catch (err) {
-                        console.error("DEBUG [Auth]: Error consultando DB usuario", err);
+                        console.error("DEBUG [Auth]: Backend no disponible en login credentials", err);
+                        return { ...token, error: "BackendUnavailableError" };
                     }
+                    // Si el usuario no existe en DB (404), registrarlo automáticamente con sus datos de Keycloak
+                    if (res.status === 404) {
+                        console.log("DEBUG [Auth]: Usuario no encontrado en DB, registrando desde Keycloak...");
+                        const nameParts = (user.name ?? "").split(" ");
+                        const firstName = nameParts[0] || "Usuario";
+                        const lastName = nameParts.slice(1).join(" ") || "";
+                        try {
+                            const regBody = {
+                                name: firstName,
+                                lastName,
+                                email: user.email,
+                                password: "oauth_user_password",
+                                role: primaryRole,
+                                // No enviamos keycloakId: el backend detecta 409 en Keycloak y llama assignRole()
+                            };
+                            console.log("DEBUG [Auth]: Registrando en DB con datos:", JSON.stringify(regBody));
+                            const regRes = await fetch(`${process.env.API_URL}/api/v1/users/register`, {
+                                method: "POST",
+                                headers: { "Content-Type": "application/json" },
+                                body: JSON.stringify(regBody),
+                            });
+                            if (regRes.ok) {
+                                const created = await regRes.json();
+                                dbId = created.id;
+                                token.dbName = `${created.name} ${created.lastName}`;
+                                console.log("DEBUG [Auth]: Usuario registrado en DB. ID:", dbId);
+                            } else {
+                                console.error("DEBUG [Auth]: No se pudo registrar en DB. Status:", regRes.status);
+                            }
+                        } catch (regErr) {
+                            console.error("DEBUG [Auth]: Error registrando en DB:", regErr);
+                        }
+                    } else if (!res.ok) {
+                        console.error("DEBUG [Auth]: Backend rechazó consulta by-email. Status:", res.status);
+                        return { ...token, error: "BackendUnavailableError" };
+                    } else {
+                        const dbUser = await res.json();
+                        dbId = dbUser.id;
+                        if (dbUser.keycloakId) resolvedKeycloakId = dbUser.keycloakId;
+                        mustChangePassword = dbUser.mustChangePassword === true;
+                        token.dbName = `${dbUser.name} ${dbUser.lastName}`;
+                    }
+                    console.log("DEBUG [Auth]: Login credentials. ID DB:", dbId, "keycloakId:", resolvedKeycloakId, "mustChangePassword:", mustChangePassword, "roles:", roles);
                 }
 
                 return {
@@ -179,7 +225,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
                     refreshToken,
                     idToken,
                     dbId,
-                    keycloakId: (user as any).id || token.sub,
+                    keycloakId: resolvedKeycloakId,
                     roles,
                     isNewUser,
                     newUserEmail,

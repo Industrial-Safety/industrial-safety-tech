@@ -17,6 +17,7 @@ function getSession() {
 function invalidSession(session: any) {
     if (!session) return true
     if ((session as any).error === "RefreshAccessTokenError") return true
+    if ((session as any).error === "BackendUnavailableError") return true
     if (!(session as any).accessToken) return true
     return false
 }
@@ -50,11 +51,13 @@ export async function GET(req: NextRequest, { params }: { params: { path: string
 }
 
 export async function POST(req: NextRequest, { params }: { params: { path: string[] } }) {
-    const session = await getSession()
-    if (invalidSession(session)) return NextResponse.json({ error: "No session" }, { status: 401 })
-
     const resolvedParams = await params
     const path = resolvedParams.path.join("/")
+
+    // Allow unauthenticated registration
+    const isPublic = path === "users/register"
+    const session = isPublic ? null : await getSession()
+    if (!isPublic && invalidSession(session)) return NextResponse.json({ error: "No session" }, { status: 401 })
     const targetUrl = buildTargetUrl(req, path)
 
     let body = {}
@@ -65,13 +68,15 @@ export async function POST(req: NextRequest, { params }: { params: { path: strin
     console.log("DEBUG [Proxy POST] Target:", targetUrl);
     console.log("DEBUG [Proxy POST] Body:", body);
 
+    const postHeaders: Record<string, string> = { "Content-Type": "application/json" }
+    if (session && (session as any).accessToken) {
+        postHeaders["Authorization"] = `Bearer ${(session as any).accessToken}`
+    }
+
     try {
         const response = await fetch(targetUrl, {
             method: "POST",
-            headers: {
-                "Content-Type": "application/json",
-                "Authorization": `Bearer ${(session as any).accessToken}`
-            },
+            headers: postHeaders,
             body: JSON.stringify(body)
         })
         const data = await safeJson(response)

@@ -2,7 +2,7 @@
 
 import { useState, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
-import { signIn } from "next-auth/react";
+import { signIn, signOut } from "next-auth/react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
@@ -29,10 +29,17 @@ function SetPasswordContent() {
     setError("");
 
     try {
-      // 1. Obtener sesion actual para el keycloakId
+      // 1. Obtener sesion actual — usar sub del JWT como UUID real de Keycloak
       const sessionRes = await fetch("/api/auth/session");
       const session = await sessionRes.json();
-      const keycloakId = session?.keycloakId;
+
+      let keycloakId: string | undefined;
+      try {
+        const payload = JSON.parse(atob(session?.accessToken?.split(".")[1] ?? ""));
+        keycloakId = payload.sub;
+      } catch {
+        keycloakId = session?.keycloakId;
+      }
 
       if (!keycloakId) {
         setError("No se pudo obtener la sesion. Intenta iniciar sesion de nuevo.");
@@ -44,7 +51,7 @@ function SetPasswordContent() {
       const res = await fetch(`/api/proxy/users/change-password`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ userId: keycloakId, newPassword: password }),
+        body: JSON.stringify({ userId: keycloakId, email, newPassword: password.trim() }),
       });
 
       if (!res.ok) {
@@ -54,26 +61,21 @@ function SetPasswordContent() {
         return;
       }
 
-      // 3. Re-login automatico con la nueva contrasena para refrescar el token
+      // 3. Limpiar sesion actual (tiene mustChangePassword:true) y re-autenticar con nueva contrasena
+      await signOut({ redirect: false });
       const loginResult = await signIn("credentials", {
         redirect: false,
         email,
-        password,
+        password: password.trim(),
       });
 
       if (loginResult?.error) {
-        // El cambio se hizo pero el re-login fallo, mandamos al login manual
         window.location.href = "/login";
         return;
       }
 
-      // 4. Redirigir al dashboard segun rol
-      const newSessionRes = await fetch("/api/auth/session");
-      const newSession = await newSessionRes.json();
-      const roles = newSession?.roles || [];
-      const isAdmin = roles.includes("ROLE_ADMINISTRADOR") || roles.includes("ADMINISTRADOR");
-
-      window.location.href = isAdmin ? "/select-role" : "/";
+      // 4. Dejar que /auth/redirect determine el dashboard segun rol
+      window.location.href = "/auth/redirect";
     } catch (err) {
       setError("Error inesperado. Intenta de nuevo.");
     } finally {

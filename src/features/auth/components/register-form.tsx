@@ -18,7 +18,7 @@ export default function RegisterForm() {
     setLoading(true);
     setError("");
 
-    const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/users/register`, {
+    const response = await fetch(`/api/proxy/users/register`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -50,8 +50,8 @@ export default function RegisterForm() {
       return;
     }
 
-    // Login exitoso -> dejamos que el middleware redirija según el rol
-    window.location.href = "/";
+    // Login exitoso -> /auth/redirect aplica la lógica de rol del middleware
+    window.location.href = "/auth/redirect";
   };
 
   const registerWithProvider = (provider: string) => {

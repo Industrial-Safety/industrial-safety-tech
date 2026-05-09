@@ -20,6 +20,7 @@ import {
   ChevronDown,
   Image as ImageIcon,
 } from "lucide-react";
+import { CoursePreviewModal } from "@/components/courses/course-preview-modal";
 
 interface LectureFromAPI {
   title: string;
@@ -89,6 +90,9 @@ export default async function CourseDetailPage({ params }: { params: Promise<{ i
   const sections = course.sectionList ?? [];
   const outcomes = course.learningOutcomes ?? [];
   const requirements = course.requirements ?? [];
+  const previewVideoUrl = sections
+    .flatMap(s => s.lectureList ?? [])
+    .find(l => l.contentUrl)?.contentUrl ?? null;
 
   const formatLectureDuration = (seconds?: number) => {
     if (!seconds) return "";
@@ -299,25 +303,11 @@ export default async function CourseDetailPage({ params }: { params: Promise<{ i
           {/* Sticky purchase card - Desktop */}
           <div className="hidden lg:block">
             <div className="sticky top-28 -mt-[420px] w-full max-w-[380px] ml-auto bg-surface rounded-xl border border-slate-700 shadow-2xl overflow-hidden z-30">
-              <div className="relative h-56 w-full border-b border-slate-700 bg-slate-800 flex items-center justify-center">
-                {course.coverImageUrl ? (
-                  <img
-                    src={course.coverImageUrl}
-                    alt={course.title}
-                    className="absolute inset-0 h-full w-full object-cover"
-                  />
-                ) : (
-                  <ImageIcon className="h-16 w-16 text-slate-600" />
-                )}
-                <div className="absolute inset-0 bg-slate-950/40 hover:bg-slate-950/20 transition-colors flex items-center justify-center">
-                  <div className="h-16 w-16 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center hover:scale-110 transition-transform">
-                    <PlayCircle className="h-10 w-10 text-white" />
-                  </div>
-                </div>
-                <div className="absolute bottom-4 left-0 w-full text-center">
-                  <span className="text-white font-semibold text-sm drop-shadow-md">Vista previa de este curso</span>
-                </div>
-              </div>
+              <CoursePreviewModal
+                videoUrl={previewVideoUrl}
+                coverImageUrl={course.coverImageUrl}
+                courseTitle={course.title}
+              />
               <div className="p-6">
                 <div className="text-3xl font-bold text-foreground mb-6">{price}</div>
                 <AddToCartButton

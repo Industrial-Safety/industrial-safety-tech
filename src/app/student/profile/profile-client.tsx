@@ -51,11 +51,11 @@ export default function ProfileSettingsClient({ initialData, accessToken }: Prof
 
       const body: Record<string, string> = {
         name,
-        lastName,
+        lastName: lastName || name, // si no hay apellido, usar el nombre para no violar @NotBlank
         email: initialData.email,
         cellphone: formData.phone,
         role: "ROLE_ALUMNO",
-        password: "oauth_user_secret", // Dummy password para validación
+        password: "oauth_user_secret",
         urlPhoto: initialData.avatarUrl || "",
       };
 

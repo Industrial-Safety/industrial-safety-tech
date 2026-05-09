@@ -2,7 +2,9 @@ import Link from "next/link";
 import LoginForm from "@/features/auth/components/login-form";
 import { Shield, Camera } from "lucide-react";
 
-export default function LoginPage() {
+export default async function LoginPage({ searchParams }: { searchParams: Promise<{ error?: string }> }) {
+  const { error } = await searchParams;
+  const initialError = error === "BackendUnavailable" ? "Servicio no disponible. Intenta de nuevo en unos momentos." : undefined;
   return (
     <div className="flex min-h-screen bg-slate-950 relative overflow-hidden">
       {/* Background Orbs */}
@@ -31,7 +33,7 @@ export default function LoginPage() {
             Ingresa tus credenciales para acceder a tu panel de control.
           </p>
 
-          <LoginForm />
+          <LoginForm initialError={initialError} />
         </div>
       </div>
 

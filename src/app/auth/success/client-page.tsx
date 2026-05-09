@@ -1,11 +1,25 @@
 "use client";
 
 import { useEffect } from "react";
+import { signOut } from "next-auth/react";
 
-export default function AuthSuccessClient({ newUserEmail }: { newUserEmail?: string }) {
+export default function AuthSuccessClient({ newUserEmail, error }: { newUserEmail?: string; error?: string }) {
   useEffect(() => {
-    const targetUrl = newUserEmail 
-      ? `/auth/set-password?email=${encodeURIComponent(newUserEmail)}` 
+    if (error === "BackendUnavailableError") {
+      signOut({ redirect: false }).then(() => {
+        const target = "/login?error=BackendUnavailable";
+        if (window.opener) {
+          window.opener.location.href = target;
+          window.close();
+        } else {
+          window.location.href = target;
+        }
+      });
+      return;
+    }
+
+    const targetUrl = newUserEmail
+      ? `/auth/set-password?email=${encodeURIComponent(newUserEmail)}`
       : "/";
 
     if (window.opener) {
@@ -14,7 +28,7 @@ export default function AuthSuccessClient({ newUserEmail }: { newUserEmail?: str
     } else {
       window.location.href = targetUrl;
     }
-  }, [newUserEmail]);
+  }, [newUserEmail, error]);
 
   return (
     <div className="flex h-screen w-screen items-center justify-center bg-background">

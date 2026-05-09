@@ -17,37 +17,31 @@ export default auth((req) => {
 
   // 3. Lógica para usuarios logueados
   if (isLoggedIn) {
-    // Si intenta acceder a login o register estando logueado, lo redirigimos
-    if (pathname === "/login" || pathname === "/register") {
-      return NextResponse.redirect(new URL("/student", req.nextUrl));
-    }
-
     // Extraer y decodificar el token de Keycloak para obtener los roles
     const accessToken = req.auth?.accessToken;
     let roles: string[] = [];
 
     if (accessToken) {
       try {
-        // En Edge Runtime (Middleware) usamos atob() para decodificar base64
         const payloadBase64 = accessToken.split(".")[1];
         const payload = JSON.parse(atob(payloadBase64));
-        
-        // Keycloak inyecta los roles del realm en `realm_access.roles`
         roles = payload.realm_access?.roles || [];
       } catch (error) {
         console.error("Error decodificando JWT en el middleware:", error);
       }
     }
 
-    // Definir los roles según tu captura de Keycloak
-    const isAdmin = roles.includes("ROLE_ADMINISTRADOR");
-    const isGerencia = roles.includes("ROLE_GERENCIA_GENERAL");
-    const isJefeSeguridad = roles.includes("ROLE_JEFE_SEGURIDAD");
-    const isLogistica = roles.includes("ROLE_LOGISTICA_ALMACEN");
-    const isMarketing = roles.includes("ROLE_MARKETING");
-    const isTrabajador = roles.includes("ROLE_TRABAJADOR");
-    const isInstructor = roles.includes("ROLE_INSTRUCTOR");
-    const isAlumno = roles.includes("ROLE_ALUMNO");
+    // Keycloak puede enviar roles como "ADMINISTRADOR" o "ROLE_ADMINISTRADOR"
+    const hasRole = (role: string) => roles.includes(role) || roles.includes(`ROLE_${role}`);
+
+    const isAdmin = hasRole("ADMINISTRADOR");
+    const isGerencia = hasRole("GERENCIA_GENERAL");
+    const isJefeSeguridad = hasRole("JEFE_SEGURIDAD");
+    const isLogistica = hasRole("LOGISTICA_ALMACEN");
+    const isMarketing = hasRole("MARKETING");
+    const isTrabajador = hasRole("TRABAJADOR");
+    const isInstructor = hasRole("INSTRUCTOR");
+    const isAlumno = hasRole("ALUMNO");
 
     // Determinar la ruta de destino según el rol
     let targetDashboard = "/student";

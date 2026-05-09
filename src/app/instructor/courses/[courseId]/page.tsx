@@ -88,7 +88,7 @@ export default function CourseBuilderPage() {
     }
   };
 
-  const saveCourse = async (data: any) => {
+  const saveCourse = async (data: any): Promise<boolean> => {
     try {
       setIsSaving(true);
       const res = await fetch(`/api/proxy/course/${params.courseId}`, {
@@ -96,18 +96,25 @@ export default function CourseBuilderPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data)
       });
-      if (!res.ok) throw new Error("Error al guardar");
+      if (!res.ok) {
+        toast.error("Error al guardar los cambios");
+        return false;
+      }
+      const updated = await res.json();
+      setCourseData(updated);
+      return true;
     } catch (error) {
       console.error("Error saving course:", error);
       toast.error("Error al guardar los cambios");
+      return false;
     } finally {
       setIsSaving(false);
     }
   };
 
   const handleSaveCourse = async () => {
-    await saveCourse(courseData);
-    toast.success("¡Cambios guardados con éxito!");
+    const ok = await saveCourse(courseData);
+    if (ok) toast.success("¡Cambios guardados con éxito!");
   };
 
   const extractVideoDuration = (file: File): Promise<string> =>
@@ -273,8 +280,8 @@ export default function CourseBuilderPage() {
     const newData = { ...courseData, sectionList: updatedSections };
     setCourseData(newData);
     setIsEditLectureModalOpen(false);
-    await saveCourse(newData);
-    toast.success("Lección actualizada y guardada");
+    const ok = await saveCourse(newData);
+    if (ok) toast.success("Lección actualizada y guardada");
   };
 
   const handleDeleteModule = async (sIdx: number) => {
@@ -282,8 +289,8 @@ export default function CourseBuilderPage() {
     const newData = { ...courseData, sectionList: updatedSections };
     setCourseData(newData);
     setSelectedModuleIdx(updatedSections.length > 0 ? 0 : null);
-    await saveCourse(newData);
-    toast.success("Módulo eliminado");
+    const ok = await saveCourse(newData);
+    if (ok) toast.success("Módulo eliminado");
   };
 
   const handleAddModule = async () => {
@@ -293,8 +300,8 @@ export default function CourseBuilderPage() {
     setNewModuleTitle("");
     setIsModuleModalOpen(false);
     setSelectedModuleIdx(newData.sectionList.length - 1);
-    await saveCourse(newData);
-    toast.success("Módulo añadido y guardado");
+    const ok = await saveCourse(newData);
+    if (ok) toast.success("Módulo añadido y guardado");
   };
 
   const handleAddLecture = async () => {
@@ -314,8 +321,8 @@ export default function CourseBuilderPage() {
     const newData = { ...courseData, sectionList: updatedSections };
     setCourseData(newData);
     resetLectureModal();
-    await saveCourse(newData);
-    toast.success("Lección añadida y guardada");
+    const ok = await saveCourse(newData);
+    if (ok) toast.success("Lección añadida y guardada");
   };
 
   if (loading) return <div className="p-10 text-center text-muted-foreground animate-pulse">Cargando Constructor...</div>;

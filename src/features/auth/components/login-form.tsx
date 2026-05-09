@@ -6,11 +6,11 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
-export default function LoginForm() {
+export default function LoginForm({ initialError }: { initialError?: string }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
+  const [error, setError] = useState(initialError ?? "");
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -30,23 +30,7 @@ export default function LoginForm() {
       return;
     }
 
-    const sessionResponse = await fetch("/api/auth/session");
-    const session = await sessionResponse.json();
-
-    // Si el usuario debe cambiar su contrasena, redirigir primero
-    if (session?.mustChangePassword === true) {
-      window.location.href = `/auth/set-password?email=${encodeURIComponent(email)}`;
-      return;
-    }
-
-    const roles = session?.roles || [];
-    const isAdmin = roles.includes("ROLE_ADMINISTRADOR") || roles.includes("ADMINISTRADOR");
-
-    if (isAdmin) {
-      window.location.href = "/select-role";
-    } else {
-      window.location.href = "/";
-    }
+    window.location.href = "/auth/redirect";
   };
 
   const loginWithProvider = (provider: string) => {
