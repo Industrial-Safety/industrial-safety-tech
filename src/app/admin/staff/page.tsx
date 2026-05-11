@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input"
 import { Select } from "@/components/ui/select"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
-import { Plus, Search, ShieldBan, KeyRound, MoreVertical, Pencil, Trash2, ChevronLeft, ChevronRight } from "lucide-react"
+import { Plus, Search, ShieldBan, KeyRound, MoreVertical, Pencil, ChevronLeft, ChevronRight, ToggleLeft, ToggleRight } from "lucide-react"
 import { useSession } from "next-auth/react"
 import {
   DropdownMenu,
@@ -99,6 +99,23 @@ export default function StaffAndAccessPage() {
     setIsEditModalOpen(true)
   }
 
+  const handleToggleStatus = async (staff: any) => {
+    try {
+      const response = await fetch(`/api/proxy/users/${staff.id}/toggle-status`, {
+        method: "PATCH",
+      })
+      if (response.ok) {
+        setShowEditSuccess(true)
+        fetchStaff()
+        setTimeout(() => setShowEditSuccess(false), 1000)
+      } else {
+        alert("Error al cambiar el estado del usuario.")
+      }
+    } catch (err) {
+      console.error("Error al cambiar estado:", err)
+    }
+  }
+
 
   const handleUpdateStaff = async () => {
     setLoading(true)
@@ -178,21 +195,17 @@ export default function StaffAndAccessPage() {
 
       if (response.ok) {
         setShowSuccess(true)
-        // Guardamos el área para el botón del modal antes de limpiar
-        const lastArea = selectedArea
-        const targetPath = pathMap[lastArea] || "/admin"
-
         setFormData({ dni: '', name: '', lastName: '', email: '', cellphone: '' })
-        // No limpiamos selectedArea inmediatamente para que el modal lo use
         fetchStaff()
-        
         setTimeout(() => {
           setShowSuccess(false)
           setSelectedArea('')
-        }, 3000) // Un poco más de tiempo para que de tiempo a hacer clic
+        }, 3000)
+      } else if (response.status === 409) {
+        alert(`El correo "${formData.email}" ya está en uso. Ingresa un correo diferente.`)
       } else {
         const error = await response.json()
-        alert(`Error: ${error.message || "No se pudo registrar"}`)
+        alert(`Error: ${error.detail || error.message || "No se pudo registrar"}`)
       }
     } catch (err) {
       console.error("Error al registrar:", err)
@@ -453,10 +466,17 @@ export default function StaffAndAccessPage() {
                               <div className="text-[10px] text-muted">{staff.cellphone || "Sin teléfono"}</div>
                             </TableCell>
                             <TableCell>
-                              <div className="flex items-center gap-1.5">
-                                <div className="w-1.5 h-1.5 rounded-full bg-success animate-pulse" />
-                                <span className="text-[11px] text-success font-medium">Activo</span>
-                              </div>
+                              {staff.isActive !== false ? (
+                                <div className="flex items-center gap-1.5">
+                                  <div className="w-1.5 h-1.5 rounded-full bg-success animate-pulse" />
+                                  <span className="text-[11px] text-success font-medium">Activo</span>
+                                </div>
+                              ) : (
+                                <div className="flex items-center gap-1.5">
+                                  <div className="w-1.5 h-1.5 rounded-full bg-danger" />
+                                  <span className="text-[11px] text-danger font-medium">Inactivo</span>
+                                </div>
+                              )}
                             </TableCell>
                             <TableCell className="text-right">
                               <DropdownMenu>
@@ -469,6 +489,15 @@ export default function StaffAndAccessPage() {
                                   <DropdownMenuItem onClick={() => handleEditClick(staff)} className="cursor-pointer">
                                     <Pencil className="mr-2 h-4 w-4" />
                                     Editar
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem
+                                    onClick={() => handleToggleStatus(staff)}
+                                    className={`cursor-pointer ${staff.isActive !== false ? "text-danger focus:text-danger" : "text-success focus:text-success"}`}
+                                  >
+                                    {staff.isActive !== false
+                                      ? <><ToggleLeft className="mr-2 h-4 w-4" /> Desactivar Cuenta</>
+                                      : <><ToggleRight className="mr-2 h-4 w-4" /> Activar Cuenta</>
+                                    }
                                   </DropdownMenuItem>
                                 </DropdownMenuContent>
                               </DropdownMenu>

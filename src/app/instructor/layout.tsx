@@ -17,8 +17,10 @@ import {
   Briefcase,
   X,
   AlertTriangle,
-  Lightbulb
+  Lightbulb,
+  Megaphone
 } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { Avatar } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { signOut, useSession } from "next-auth/react";
@@ -28,11 +30,13 @@ const instructorNavItems = [
   { href: "/instructor/courses", label: "Mis Cursos", icon: BookOpen },
   { href: "/instructor/analytics", label: "Analíticas por Alumno", icon: BarChart4 },
   { href: "/instructor/communications", label: "Comunicaciones", icon: MessageSquare },
+  { href: "/instructor/announcements", label: "Anuncios", icon: Megaphone },
   { href: "/instructor/profile", label: "Mi Perfil", icon: User },
 ];
 
 export default function InstructorLayout({ children }: { children: React.ReactNode }) {
   const { data: session } = useSession();
+  const router = useRouter();
   const [collapsed, setCollapsed] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const pathname = usePathname();
@@ -205,20 +209,26 @@ export default function InstructorLayout({ children }: { children: React.ReactNo
                 </div>
                 <div className="max-h-[300px] overflow-y-auto p-2">
                   
-                  <div className="p-3 rounded-lg hover:bg-surface-secondary cursor-pointer transition-colors border border-transparent hover:border-border mb-1">
+                  <button
+                    onClick={() => { setNotificationsOpen(false); router.push("/instructor/communications"); }}
+                    className="w-full text-left p-3 rounded-lg hover:bg-surface-secondary transition-colors border border-transparent hover:border-border mb-1"
+                  >
                     <div className="flex gap-3">
                       <div className="h-8 w-8 rounded-full bg-warning/10 flex items-center justify-center shrink-0 mt-0.5">
                         <AlertTriangle className="h-4 w-4 text-warning" />
                       </div>
                       <div>
-                         <p className="text-xs font-semibold">Alto ratio de reprobados</p>
-                         <p className="text-xs text-muted mt-1 leading-snug">El 40% de los alumnos fracasó en el examen del Módulo 2 de EPP.</p>
-                         <span className="text-[10px] text-muted-foreground mt-2 block">Hoy a las 11:30 AM</span>
+                        <p className="text-xs font-semibold">Alto ratio de reprobados</p>
+                        <p className="text-xs text-muted mt-1 leading-snug">El 40% de los alumnos fracasó en el examen del Módulo 2 de EPP.</p>
+                        <span className="text-[10px] text-muted-foreground mt-2 block">Hoy a las 11:30 AM</span>
                       </div>
                     </div>
-                  </div>
+                  </button>
 
-                  <div className="p-3 rounded-lg hover:bg-surface-secondary cursor-pointer transition-colors border border-transparent hover:border-border">
+                  <button
+                    onClick={() => { setNotificationsOpen(false); router.push("/instructor/communications"); }}
+                    className="w-full text-left p-3 rounded-lg hover:bg-surface-secondary transition-colors border border-transparent hover:border-border"
+                  >
                     <div className="flex gap-3">
                       <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center shrink-0 mt-0.5">
                         <Lightbulb className="h-4 w-4 text-primary" />
@@ -229,7 +239,7 @@ export default function InstructorLayout({ children }: { children: React.ReactNo
                         <span className="text-[10px] text-muted-foreground mt-2 block">Ayer</span>
                       </div>
                     </div>
-                  </div>
+                  </button>
 
                 </div>
                 <div className="p-3 border-t border-border bg-surface-secondary/30 rounded-b-xl text-center">

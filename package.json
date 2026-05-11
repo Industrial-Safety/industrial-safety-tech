@@ -16,6 +16,7 @@
     "@radix-ui/react-progress": "^1.1.8",
     "@radix-ui/react-tabs": "^1.1.13",
     "@stomp/stompjs": "^7.3.0",
+    "@tanstack/react-virtual": "^3.13.24",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "lucide-react": "^1.8.0",

@@ -117,6 +117,36 @@ export async function PUT(req: NextRequest, { params }: { params: { path: string
     }
 }
 
+export async function PATCH(req: NextRequest, { params }: { params: { path: string[] } }) {
+    const session = await getSession()
+    if (invalidSession(session)) return NextResponse.json({ error: "No session" }, { status: 401 })
+
+    const resolvedParams = await params
+    const path = resolvedParams.path.join("/")
+    const targetUrl = buildTargetUrl(req, path)
+
+    let body = {}
+    try {
+        body = await req.json()
+    } catch (e) {}
+
+    try {
+        const response = await fetch(targetUrl, {
+            method: "PATCH",
+            headers: {
+                "Content-Type": "application/json",
+                "Authorization": `Bearer ${(session as any).accessToken}`
+            },
+            body: JSON.stringify(body)
+        })
+        const data = await safeJson(response)
+        return NextResponse.json(data, { status: response.status })
+    } catch (error) {
+        console.error("Proxy PATCH Error:", error)
+        return NextResponse.json({ error: "Proxy error" }, { status: 500 })
+    }
+}
+
 export async function DELETE(req: NextRequest, { params }: { params: { path: string[] } }) {
     const session = await getSession()
     if (invalidSession(session)) return NextResponse.json({ error: "No session" }, { status: 401 })

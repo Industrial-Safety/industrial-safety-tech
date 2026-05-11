@@ -18,6 +18,7 @@ import {
   Tag
 } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line, AreaChart, Area } from "recharts";
+import React from "react";
 
 const conversionData = [
   { name: "Lun", visitas: 1240, conversiones: 89 },
@@ -36,13 +37,27 @@ const trafficData = [
   { name: "Sem 4", organic: 4500, paid: 3100, social: 1800 },
 ];
 
-const activePromotions = [
-  { id: "PROMO-001", name: "Descuento 20% EPP", course: "Uso Correcto de EPP", discount: "20%", status: "active", uses: 45, maxUses: 100 },
-  { id: "PROMO-002", name: "Cupón Fin de Semana", course: "General", discount: "$15", status: "active", uses: 78, maxUses: 200 },
-  { id: "PROMO-003", name: "Black Friday", course: "Todos los cursos", discount: "35%", status: "scheduled", uses: 0, maxUses: 500 },
-];
+interface Coupon {
+  id: number;
+  code: string;
+  discountType: "PERCENTAGE" | "FIXED";
+  value: number;
+  maxUses: number | null;
+  currentUses: number;
+  courseId: string | null;
+  status: "ACTIVE" | "EXHAUSTED" | "EXPIRED" | "DISABLED";
+}
 
 export default function MarketingDashboardPage() {
+  const [coupons, setCoupons] = React.useState<Coupon[]>([]);
+
+  React.useEffect(() => {
+    fetch("/api/proxy/orders/coupons")
+      .then(r => r.ok ? r.json() : [])
+      .then(setCoupons)
+      .catch(() => {});
+  }, []);
+
   return (
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
       
@@ -217,39 +232,50 @@ export default function MarketingDashboardPage() {
           </div>
         </CardHeader>
         <CardContent>
-          <div className="space-y-3">
-            {activePromotions.map((promo) => (
-              <div key={promo.id} className="flex items-center justify-between p-4 rounded-lg border border-border bg-surface-secondary/30 hover:bg-surface-secondary/50 transition-colors">
-                <div className="flex items-center gap-4">
-                  <div className="h-12 w-12 rounded-lg bg-pink-500/10 flex items-center justify-center">
-                    <Tag className="h-6 w-6 text-pink-500" />
-                  </div>
-                  <div>
-                    <h4 className="font-semibold text-sm">{promo.name}</h4>
-                    <p className="text-xs text-muted">{promo.course}</p>
-                    <div className="flex items-center gap-2 mt-1">
-                      <Badge variant="outline" className={promo.status === "active" ? "bg-success/10 text-success border-success/30" : "bg-warning/10 text-warning border-warning/30"}>
-                        {promo.status === "active" ? "Activa" : "Programada"}
-                      </Badge>
-                      <span className="text-xs text-muted">ID: {promo.id}</span>
+          {coupons.length === 0 ? (
+            <p className="text-sm text-muted py-4 text-center">No hay cupones creados aún.</p>
+          ) : (
+            <div className="space-y-3">
+              {coupons.map(c => (
+                <div key={c.id} className="flex items-center justify-between p-4 rounded-lg border border-border bg-surface-secondary/30 hover:bg-surface-secondary/50 transition-colors">
+                  <div className="flex items-center gap-4">
+                    <div className="h-12 w-12 rounded-lg bg-pink-500/10 flex items-center justify-center">
+                      <Tag className="h-6 w-6 text-pink-500" />
+                    </div>
+                    <div>
+                      <h4 className="font-semibold text-sm font-mono">{c.code}</h4>
+                      <p className="text-xs text-muted">{c.courseId ? `Curso: ${c.courseId}` : "Todos los cursos"}</p>
+                      <div className="flex items-center gap-2 mt-1">
+                        <Badge variant="outline" className={
+                          c.status === "ACTIVE" ? "bg-success/10 text-success border-success/30" :
+                          c.status === "EXHAUSTED" ? "bg-danger/10 text-danger border-danger/30" :
+                          "bg-warning/10 text-warning border-warning/30"
+                        }>
+                          {c.status === "ACTIVE" ? "Activa" : c.status === "EXHAUSTED" ? "Agotada" : "Inactiva"}
+                        </Badge>
+                      </div>
                     </div>
                   </div>
-                </div>
-                <div className="text-right">
-                  <p className="text-2xl font-bold text-pink-500">{promo.discount}</p>
-                  <p className="text-xs text-muted mt-1">
-                    {promo.uses} / {promo.maxUses} usos
-                  </p>
-                  <div className="h-1.5 w-24 bg-slate-700 rounded-full mt-1 overflow-hidden">
-                    <div 
-                      className="h-full bg-pink-500 rounded-full transition-all" 
-                      style={{ width: `${(promo.uses / promo.maxUses) * 100}%` }}
-                    />
+                  <div className="text-right">
+                    <p className="text-2xl font-bold text-pink-500">
+                      {c.discountType === "PERCENTAGE" ? `${c.value}%` : `S/${c.value}`}
+                    </p>
+                    <p className="text-xs text-muted mt-1">
+                      {c.currentUses} / {c.maxUses ?? "∞"} usos
+                    </p>
+                    {c.maxUses && (
+                      <div className="h-1.5 w-24 bg-slate-700 rounded-full mt-1 overflow-hidden">
+                        <div
+                          className="h-full bg-pink-500 rounded-full transition-all"
+                          style={{ width: `${Math.min((c.currentUses / c.maxUses) * 100, 100)}%` }}
+                        />
+                      </div>
+                    )}
                   </div>
                 </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
         </CardContent>
       </Card>
 

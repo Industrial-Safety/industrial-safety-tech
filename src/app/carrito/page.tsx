@@ -2,15 +2,24 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { ShoppingCart, Trash2, ArrowLeft, Check, AlertTriangle } from "lucide-react";
+import { ShoppingCart, Trash2, ArrowLeft, Check, AlertTriangle, Tag, X, Loader2 } from "lucide-react";
 import { useCart } from "@/components/providers/cart-provider";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { useEffect, useMemo, useState } from "react";
 import { useSession } from "next-auth/react";
 import { initMercadoPago, CardPayment } from "@mercadopago/sdk-react";
 
 type CheckoutPhase = "idle" | "submitting" | "awaiting_confirmation" | "confirmed" | "failed";
+
+interface CouponPreview {
+  code: string;
+  discountType: "PERCENTAGE" | "FIXED";
+  value: number;
+  discountAmount: number;
+  finalAmount: number;
+}
 
 let mpInitialized = false;
 
@@ -21,15 +30,22 @@ export default function CartPage() {
   const [orderError, setOrderError] = useState<string | null>(null);
   const [orderNumber, setOrderNumber] = useState<string | null>(null);
 
+  // Coupon state
+  const [couponInput, setCouponInput] = useState("");
+  const [couponApplied, setCouponApplied] = useState<CouponPreview | null>(null);
+  const [couponLoading, setCouponLoading] = useState(false);
+  const [couponError, setCouponError] = useState<string | null>(null);
+
   const subtotal = useMemo(
     () => cart.reduce((acc, item) => acc + parseFloat(item.price.replace("$", "")), 0),
     [cart]
   );
-  const igv = subtotal * 0.18;
-  const total = subtotal + igv;
 
-  // Promote /carrito from "awaiting_confirmation" to "confirmed" / "failed"
-  // when the WebSocket notification arrives.
+  const discountAmount = couponApplied?.discountAmount ?? 0;
+  const discountedSubtotal = subtotal - discountAmount;
+  const igv = discountedSubtotal * 0.18;
+  const total = discountedSubtotal + igv;
+
   useEffect(() => {
     function onNotification(e: Event) {
       const detail = (e as CustomEvent).detail as { success?: boolean; message?: string };
@@ -46,24 +62,50 @@ export default function CartPage() {
     return () => window.removeEventListener("purchase-notification", onNotification);
   }, []);
 
-  // Initialise MP SDK once with the publishable key.
   useEffect(() => {
     if (mpInitialized) return;
     const pk = process.env.NEXT_PUBLIC_MP_PUBLIC_KEY;
-    if (!pk || pk.startsWith("REEMPLAZA")) {
-      console.warn("[carrito] NEXT_PUBLIC_MP_PUBLIC_KEY no configurada");
-      return;
-    }
-    console.log("[mp-brick] init pk prefix:", pk.slice(0, 12), "locale: es-PE");
+    if (!pk || pk.startsWith("REEMPLAZA")) return;
     initMercadoPago(pk, { locale: "es-PE" });
     mpInitialized = true;
   }, []);
 
-  // Log every Brick render so we see what amount we are sending.
+  // Reset coupon if cart changes
   useEffect(() => {
-    if (cart.length === 0) return;
-    console.log("[mp-brick] Brick will render with amount:", Number(total.toFixed(2)));
-  }, [cart.length, total]);
+    setCouponApplied(null);
+    setCouponError(null);
+    setCouponInput("");
+  }, [cart.length]);
+
+  const handleApplyCoupon = async () => {
+    if (!couponInput.trim()) return;
+    setCouponLoading(true);
+    setCouponError(null);
+    setCouponApplied(null);
+    try {
+      const firstCourseId = cart[0]?.id ?? "";
+      const res = await fetch(
+        `/api/proxy/orders/coupons/preview?code=${encodeURIComponent(couponInput.trim())}&courseId=${firstCourseId}&amount=${subtotal.toFixed(2)}`
+      );
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        setCouponError(err?.detail ?? "Cupón inválido o expirado");
+        return;
+      }
+      const data: CouponPreview = await res.json();
+      setCouponApplied(data);
+    } catch {
+      setCouponError("No se pudo validar el cupón");
+    } finally {
+      setCouponLoading(false);
+    }
+  };
+
+  const handleRemoveCoupon = () => {
+    setCouponApplied(null);
+    setCouponInput("");
+    setCouponError(null);
+  };
 
   const handleSubmit = async (formData: any) => {
     if (!session) {
@@ -71,7 +113,6 @@ export default function CartPage() {
       window.location.href = "/login";
       return;
     }
-
     setPhase("submitting");
     setOrderError(null);
 
@@ -89,6 +130,7 @@ export default function CartPage() {
       mpPayerEmail: formData.payer?.email ?? session?.user?.email,
       mpPayerIdType: formData.payer?.identification?.type,
       mpPayerIdNumber: formData.payer?.identification?.number,
+      couponCode: couponApplied?.code ?? null,
       orderLineItemsList: cart.map((item) => ({
         idCurso: item.id,
         courseName: item.title,
@@ -107,19 +149,15 @@ export default function CartPage() {
         throw new Error(data?.detail ?? data?.message ?? `HTTP ${res.status}`);
       }
       setOrderNumber(data?.orderNumber ?? null);
-      // Order accepted as PENDING. payment-service charges async via RabbitMQ;
-      // notification-service will fire a WebSocket alert when the result arrives.
       setPhase("awaiting_confirmation");
       clearCart();
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "Error desconocido";
       setOrderError(message);
       setPhase("failed");
-      throw err; // let the Brick show its own error feedback too
+      throw err;
     }
   };
-
-  // -------- Render branches --------
 
   if (phase === "confirmed") {
     return (
@@ -129,12 +167,16 @@ export default function CartPage() {
             <div className="w-20 h-20 rounded-full bg-emerald-500/20 flex items-center justify-center mx-auto mb-6">
               <Check className="h-10 w-10 text-emerald-500" />
             </div>
-            <h1 className="text-2xl font-bold text-foreground mb-2">
-              ¡Compra confirmada!
-            </h1>
+            <h1 className="text-2xl font-bold text-foreground mb-2">¡Compra confirmada!</h1>
             <p className="text-slate-400 mb-2">
               Orden <span className="font-mono text-amber-400">{orderNumber ?? "—"}</span>
             </p>
+            {couponApplied && (
+              <p className="text-emerald-400 text-sm mb-2">
+                Cupón <strong>{couponApplied.code}</strong> aplicado — ahorraste S/{" "}
+                {discountAmount.toFixed(2)}
+              </p>
+            )}
             <p className="text-slate-400 mb-6">
               Te enviamos el recibo en PDF a tu correo y tus cursos ya están disponibles en tu biblioteca.
             </p>
@@ -162,9 +204,7 @@ export default function CartPage() {
                 <ShoppingCart className="h-8 w-8 text-amber-500 animate-pulse" />
               </div>
             </div>
-            <h1 className="text-2xl font-bold text-foreground mb-2">
-              Procesando tu pago...
-            </h1>
+            <h1 className="text-2xl font-bold text-foreground mb-2">Procesando tu pago...</h1>
             <p className="text-slate-400 mb-2">
               Orden <span className="font-mono text-amber-400">{orderNumber ?? "—"}</span>
             </p>
@@ -211,12 +251,8 @@ export default function CartPage() {
           <Card className="bg-slate-900 border-slate-800">
             <CardContent className="p-12 text-center">
               <ShoppingCart className="h-16 w-16 text-slate-700 mx-auto mb-4" />
-              <h2 className="text-xl font-bold text-foreground mb-2">
-                Tu carrito está vacío
-              </h2>
-              <p className="text-slate-400 mb-6">
-                Explora nuestros cursos y añade los que te interesen
-              </p>
+              <h2 className="text-xl font-bold text-foreground mb-2">Tu carrito está vacío</h2>
+              <p className="text-slate-400 mb-6">Explora nuestros cursos y añade los que te interesen</p>
               <Button
                 onClick={() => (window.location.href = "/cursos")}
                 className="bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold"
@@ -227,15 +263,13 @@ export default function CartPage() {
           </Card>
         ) : (
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            {/* Course list */}
             <div className="lg:col-span-2 space-y-4">
               <h2 className="text-xl font-bold text-foreground mb-4">
                 Cursos seleccionados ({cart.length})
               </h2>
               {cart.map((item) => (
-                <Card
-                  key={item.id}
-                  className="bg-slate-900 border-slate-800 hover:border-slate-700 transition-colors group"
-                >
+                <Card key={item.id} className="bg-slate-900 border-slate-800 hover:border-slate-700 transition-colors group">
                   <CardContent className="p-4 flex gap-4">
                     <div className="relative h-24 w-32 rounded-lg overflow-hidden shrink-0 border border-slate-700">
                       <Image src={item.image} alt={item.title} fill className="object-cover" />
@@ -249,7 +283,7 @@ export default function CartPage() {
                       </div>
                       <div className="flex items-center justify-between mt-2">
                         <span className="text-lg font-bold text-amber-500">
-                          S/ {parseFloat(item.price.replace('$', '')).toFixed(2)}
+                          S/ {parseFloat(item.price.replace("$", "")).toFixed(2)}
                         </span>
                         <button
                           onClick={() => removeFromCart(item.id)}
@@ -265,30 +299,96 @@ export default function CartPage() {
               ))}
             </div>
 
+            {/* Summary + payment */}
             <div className="lg:col-span-1 space-y-6">
               <Card className="bg-slate-900 border-slate-800 sticky top-6">
                 <CardContent className="p-6">
                   <h2 className="text-xl font-bold text-foreground mb-6">Resumen del pedido</h2>
+
+                  {/* Coupon input */}
+                  {!couponApplied ? (
+                    <div className="mb-5">
+                      <label className="text-xs text-slate-400 font-semibold uppercase tracking-wider mb-2 block">
+                        Cupón de descuento
+                      </label>
+                      <div className="flex gap-2">
+                        <Input
+                          placeholder="Ej: EPP20"
+                          value={couponInput}
+                          onChange={e => setCouponInput(e.target.value.toUpperCase())}
+                          onKeyDown={e => { if (e.key === "Enter") handleApplyCoupon(); }}
+                          className="bg-slate-800 border-slate-700 font-mono uppercase text-sm"
+                          disabled={couponLoading}
+                        />
+                        <Button
+                          onClick={handleApplyCoupon}
+                          disabled={!couponInput.trim() || couponLoading}
+                          className="shrink-0 bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold"
+                        >
+                          {couponLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Tag className="h-4 w-4" />}
+                        </Button>
+                      </div>
+                      {couponError && (
+                        <p className="text-xs text-red-400 mt-1.5 flex items-center gap-1">
+                          <AlertTriangle className="h-3 w-3" /> {couponError}
+                        </p>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="mb-5 p-3 rounded-lg bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <Tag className="h-4 w-4 text-emerald-400" />
+                        <div>
+                          <p className="text-sm font-bold text-emerald-400 font-mono">{couponApplied.code}</p>
+                          <p className="text-xs text-emerald-300/70">
+                            {couponApplied.discountType === "PERCENTAGE"
+                              ? `${couponApplied.value}% de descuento`
+                              : `S/ ${couponApplied.value} de descuento`}
+                          </p>
+                        </div>
+                      </div>
+                      <button onClick={handleRemoveCoupon} className="text-slate-500 hover:text-red-400 transition-colors">
+                        <X className="h-4 w-4" />
+                      </button>
+                    </div>
+                  )}
+
+                  {/* Price breakdown */}
                   <div className="space-y-3 mb-6">
                     <div className="flex justify-between text-slate-400">
-                      <span>
-                        Subtotal ({cart.length} curso{cart.length !== 1 ? "s" : ""})
-                      </span>
+                      <span>Subtotal ({cart.length} curso{cart.length !== 1 ? "s" : ""})</span>
                       <span className="font-medium text-foreground">S/ {subtotal.toFixed(2)}</span>
                     </div>
+
+                    {couponApplied && (
+                      <div className="flex justify-between text-emerald-400">
+                        <span>Descuento ({couponApplied.code})</span>
+                        <span className="font-semibold">- S/ {discountAmount.toFixed(2)}</span>
+                      </div>
+                    )}
+
                     <div className="flex justify-between text-slate-400">
                       <span>IGV (18%)</span>
                       <span className="font-medium text-foreground">S/ {igv.toFixed(2)}</span>
                     </div>
+
                     <div className="border-t border-slate-800 pt-3 mt-3">
                       <div className="flex justify-between items-center">
                         <span className="text-lg font-bold text-foreground">Total</span>
-                        <span className="text-2xl font-bold text-amber-500">
-                          S/ {total.toFixed(2)}
-                        </span>
+                        <div className="text-right">
+                          {couponApplied && (
+                            <p className="text-xs text-slate-500 line-through">
+                              S/ {(subtotal * 1.18).toFixed(2)}
+                            </p>
+                          )}
+                          <span className="text-2xl font-bold text-amber-500">
+                            S/ {total.toFixed(2)}
+                          </span>
+                        </div>
                       </div>
                     </div>
                   </div>
+
                   <Button
                     onClick={() => (window.location.href = "/cursos")}
                     variant="outline"
@@ -305,8 +405,7 @@ export default function CartPage() {
                     <h2 className="text-lg font-bold text-foreground mb-4">Pago</h2>
                     {process.env.NEXT_PUBLIC_MP_PUBLIC_KEY?.startsWith("REEMPLAZA") ? (
                       <div className="text-sm text-amber-400">
-                        Configura <code>NEXT_PUBLIC_MP_PUBLIC_KEY</code> en <code>.env</code> para
-                        habilitar el pago.
+                        Configura <code>NEXT_PUBLIC_MP_PUBLIC_KEY</code> en <code>.env</code> para habilitar el pago.
                       </div>
                     ) : (
                       <CardPayment
@@ -320,15 +419,9 @@ export default function CartPage() {
                             types: { included: ["credit_card", "debit_card", "prepaid_card"] },
                           },
                         }}
-                        onSubmit={async (formData: any) => {
-                          await handleSubmit(formData);
-                        }}
+                        onSubmit={async (formData: any) => { await handleSubmit(formData); }}
                         onError={(err: any) => {
-                          console.error("[mp-brick] error keys:", Object.keys(err ?? {}));
-                          console.error("[mp-brick] error stringified:", JSON.stringify(err, Object.getOwnPropertyNames(err ?? {})));
-                          console.error("[mp-brick] error raw:", err);
-                          if (err?.message) console.error("[mp-brick] message:", err.message);
-                          if (err?.cause) console.error("[mp-brick] cause:", err.cause);
+                          console.error("[mp-brick] error:", err);
                         }}
                       />
                     )}

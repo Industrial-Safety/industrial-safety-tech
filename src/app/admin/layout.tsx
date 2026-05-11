@@ -3,7 +3,7 @@
 import React from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { ShieldCheck, Activity, Users, Video, Settings, FileText, Menu, X, LogOut } from "lucide-react"
+import { ShieldCheck, Activity, Users, Video, Settings, FileText, Menu, X, LogOut, Megaphone } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { signOut } from "next-auth/react"
@@ -14,6 +14,7 @@ const navigation = [
   { name: "Hardware", href: "/admin/hardware", icon: Video },
   { name: "Integraciones", href: "/admin/settings", icon: Settings },
   { name: "Auditoría y Logs", href: "/admin/logs", icon: FileText },
+  { name: "Anuncios", href: "/admin/announcements", icon: Megaphone },
 ]
 
 export default function AdminLayout({
