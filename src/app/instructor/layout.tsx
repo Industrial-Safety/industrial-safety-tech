@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
@@ -16,14 +16,20 @@ import {
   LogOut,
   Briefcase,
   X,
-  AlertTriangle,
-  Lightbulb,
   Megaphone
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { Avatar } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { signOut, useSession } from "next-auth/react";
+
+interface UnreadConv {
+  id: string;
+  studentName: string;
+  lastMessagePreview: string | null;
+  lastMessageAt: string | null;
+  unreadForOtherParty: number;
+}
 
 const instructorNavItems = [
   { href: "/instructor", label: "Dashboard", icon: PieChart },
@@ -41,6 +47,9 @@ export default function InstructorLayout({ children }: { children: React.ReactNo
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const pathname = usePathname();
   const [customAvatar, setCustomAvatar] = useState<string | null>(null);
+  const [unreadCount, setUnreadCount] = useState(0);
+  const [unreadConvs, setUnreadConvs] = useState<UnreadConv[]>([]);
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
     // Read cached avatar immediately for instant render
@@ -75,6 +84,24 @@ export default function InstructorLayout({ children }: { children: React.ReactNo
     window.addEventListener("avatar-updated", handler);
     return () => window.removeEventListener("avatar-updated", handler);
   }, []);
+
+  useEffect(() => {
+    const instructorId = session?.keycloakId as string | undefined;
+    if (!instructorId) return;
+    const fetchUnread = async () => {
+      try {
+        const res = await fetch(`/api/proxy/chat/conversations/instructor/${instructorId}`);
+        if (!res.ok) return;
+        const convs: UnreadConv[] = await res.json();
+        const withUnread = convs.filter(c => c.unreadForOtherParty > 0);
+        setUnreadCount(withUnread.reduce((acc, c) => acc + c.unreadForOtherParty, 0));
+        setUnreadConvs(withUnread.slice(0, 5));
+      } catch {}
+    };
+    fetchUnread();
+    pollRef.current = setInterval(fetchUnread, 30_000);
+    return () => { if (pollRef.current) clearInterval(pollRef.current); };
+  }, [session?.keycloakId]);
 
 
   const handleLogout = () => {
@@ -184,7 +211,7 @@ export default function InstructorLayout({ children }: { children: React.ReactNo
 
           <div className="flex items-center gap-4 relative">
             {/* Notification Bell */}
-            <button 
+            <button
               onClick={() => setNotificationsOpen(!notificationsOpen)}
               className={cn(
                 "relative p-2 rounded-full transition-colors",
@@ -192,59 +219,55 @@ export default function InstructorLayout({ children }: { children: React.ReactNo
               )}
             >
               <Bell className="h-5 w-5" />
-              <span className="absolute top-1.5 right-1.5 flex h-2 w-2">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75"></span>
-                <span className="relative inline-flex rounded-full h-2 w-2 bg-primary"></span>
-              </span>
+              {unreadCount > 0 && (
+                <span className="absolute top-1 right-1 flex h-4 w-4 items-center justify-center rounded-full bg-primary text-[9px] font-bold text-black">
+                  {unreadCount > 9 ? "9+" : unreadCount}
+                </span>
+              )}
             </button>
 
             {/* Notifications Dropdown */}
             {notificationsOpen && (
               <div className="absolute top-12 right-0 w-80 bg-surface border border-border shadow-xl rounded-xl z-50 animate-in fade-in slide-in-from-top-2">
                 <div className="flex items-center justify-between p-4 border-b border-border">
-                  <h3 className="font-semibold text-sm">Alertas del Sistema</h3>
+                  <h3 className="font-semibold text-sm">Mensajes sin leer</h3>
                   <button onClick={() => setNotificationsOpen(false)} className="text-muted hover:text-foreground">
                     <X className="h-4 w-4" />
                   </button>
                 </div>
                 <div className="max-h-[300px] overflow-y-auto p-2">
-                  
-                  <button
-                    onClick={() => { setNotificationsOpen(false); router.push("/instructor/communications"); }}
-                    className="w-full text-left p-3 rounded-lg hover:bg-surface-secondary transition-colors border border-transparent hover:border-border mb-1"
-                  >
-                    <div className="flex gap-3">
-                      <div className="h-8 w-8 rounded-full bg-warning/10 flex items-center justify-center shrink-0 mt-0.5">
-                        <AlertTriangle className="h-4 w-4 text-warning" />
-                      </div>
-                      <div>
-                        <p className="text-xs font-semibold">Alto ratio de reprobados</p>
-                        <p className="text-xs text-muted mt-1 leading-snug">El 40% de los alumnos fracasó en el examen del Módulo 2 de EPP.</p>
-                        <span className="text-[10px] text-muted-foreground mt-2 block">Hoy a las 11:30 AM</span>
-                      </div>
-                    </div>
-                  </button>
-
-                  <button
-                    onClick={() => { setNotificationsOpen(false); router.push("/instructor/communications"); }}
-                    className="w-full text-left p-3 rounded-lg hover:bg-surface-secondary transition-colors border border-transparent hover:border-border"
-                  >
-                    <div className="flex gap-3">
-                      <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center shrink-0 mt-0.5">
-                        <Lightbulb className="h-4 w-4 text-primary" />
-                      </div>
-                      <div>
-                        <p className="text-xs font-semibold">¡Nuevo hito alcanzado!</p>
-                        <p className="text-xs text-muted mt-1 leading-snug">Superaste los 500 alumnos inscritos globalmente.</p>
-                        <span className="text-[10px] text-muted-foreground mt-2 block">Ayer</span>
-                      </div>
-                    </div>
-                  </button>
-
+                  {unreadConvs.length === 0 ? (
+                    <p className="text-xs text-muted text-center py-6">No tienes mensajes sin leer</p>
+                  ) : (
+                    unreadConvs.map(conv => (
+                      <button
+                        key={conv.id}
+                        onClick={() => { setNotificationsOpen(false); router.push("/instructor/communications"); }}
+                        className="w-full text-left p-3 rounded-lg hover:bg-surface-secondary transition-colors border border-transparent hover:border-border mb-1"
+                      >
+                        <div className="flex gap-3 items-start">
+                          <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center shrink-0 text-xs font-bold text-primary">
+                            {conv.studentName.slice(0, 2).toUpperCase()}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center justify-between gap-1">
+                              <p className="text-xs font-semibold truncate">{conv.studentName}</p>
+                              <Badge className="h-4 px-1.5 text-[9px] shrink-0">{conv.unreadForOtherParty}</Badge>
+                            </div>
+                            <p className="text-xs text-muted mt-0.5 truncate">{conv.lastMessagePreview ?? "Nuevo mensaje"}</p>
+                          </div>
+                        </div>
+                      </button>
+                    ))
+                  )}
                 </div>
                 <div className="p-3 border-t border-border bg-surface-secondary/30 rounded-b-xl text-center">
-                  <Link href="/instructor/communications" className="text-xs font-semibold text-primary hover:underline">
-                    Ver todas las alertas
+                  <Link
+                    href="/instructor/communications"
+                    onClick={() => setNotificationsOpen(false)}
+                    className="text-xs font-semibold text-primary hover:underline"
+                  >
+                    Ir a Comunicaciones
                   </Link>
                 </div>
               </div>

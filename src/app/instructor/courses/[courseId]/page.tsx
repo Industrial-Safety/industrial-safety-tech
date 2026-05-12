@@ -3,24 +3,26 @@
 import React, { useState, useEffect } from "react";
 import { useRouter, useParams } from "next/navigation";
 import { useSession } from "next-auth/react";
-import { 
-  ArrowLeft, 
-  Plus, 
-  Trash2, 
-  Video, 
+import {
+  ArrowLeft,
+  Plus,
+  Trash2,
+  Video,
   ChevronRight,
   UploadCloud,
   CheckCircle2,
   Settings,
   LayoutDashboard,
-  Database,
-  BarChart3,
   GripVertical,
   Pencil,
   FileText,
   Link as LinkIcon,
   X,
-  Loader2
+  Loader2,
+  ClipboardList,
+  Award,
+  Upload,
+  AlertCircle,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -35,6 +37,7 @@ import { toast } from "sonner";
 export default function CourseBuilderPage() {
   const router = useRouter();
   const params = useParams();
+  const { data: session } = useSession();
   const [loading, setLoading] = useState(true);
   const [courseData, setCourseData] = useState<any>(null);
   const [selectedModuleIdx, setSelectedModuleIdx] = useState<number | null>(null);
@@ -67,10 +70,45 @@ export default function CourseBuilderPage() {
   const [editUploadProgress, setEditUploadProgress] = useState(0);
   const [isEditUploading, setIsEditUploading] = useState(false);
 
+  // Exam state
+  const [examData, setExamData] = useState<any>(null);
+  const [examLoading, setExamLoading] = useState(false);
+  const [xlsxFile, setXlsxFile] = useState<File | null>(null);
+  const [parsedQuestions, setParsedQuestions] = useState<any[]>([]);
+  const [passingScore, setPassingScore] = useState(70);
+  const [savingExam, setSavingExam] = useState(false);
+  const [isParsing, setIsParsing] = useState(false);
+  const [showReplaceExam, setShowReplaceExam] = useState(false);
+
   useEffect(() => {
     if (params.courseId) {
       fetchCourse();
     }
+  }, [params.courseId]);
+
+  useEffect(() => {
+    if (!params.courseId) return;
+    const loadExam = async () => {
+      setExamLoading(true);
+      try {
+        const res = await fetch(`/api/proxy/exams/exists/${params.courseId}`);
+        if (!res.ok) return;
+        const { exists } = await res.json();
+        if (exists) {
+          const examRes = await fetch(`/api/proxy/exams/by-course/${params.courseId}`);
+          if (examRes.ok) {
+            const data = await examRes.json();
+            setExamData(data);
+            if (data.passingScore) setPassingScore(data.passingScore);
+          }
+        }
+      } catch (e) {
+        console.error("Error loading exam:", e);
+      } finally {
+        setExamLoading(false);
+      }
+    };
+    loadExam();
   }, [params.courseId]);
 
   const fetchCourse = async () => {
@@ -325,6 +363,50 @@ export default function CourseBuilderPage() {
     if (ok) toast.success("Lección añadida y guardada");
   };
 
+  const handleParseXlsx = async () => {
+    if (!xlsxFile) return;
+    setIsParsing(true);
+    try {
+      const formData = new FormData();
+      formData.append("file", xlsxFile);
+      const res = await fetch("/api/proxy/exams/parse", { method: "POST", body: formData });
+      if (!res.ok) { toast.error("Error al parsear el archivo"); return; }
+      const questions = await res.json();
+      setParsedQuestions(questions);
+      toast.success(`${questions.length} preguntas detectadas`);
+    } catch {
+      toast.error("Error al procesar el archivo");
+    } finally {
+      setIsParsing(false);
+    }
+  };
+
+  const handleSaveExam = async () => {
+    if (!xlsxFile || parsedQuestions.length === 0) return;
+    setSavingExam(true);
+    try {
+      const formData = new FormData();
+      formData.append("file", xlsxFile);
+      formData.append("courseId", params.courseId as string);
+      formData.append("instructorId", (session as any)?.keycloakId ?? "");
+      formData.append("instructorName", session?.user?.name ?? "");
+      formData.append("title", `${courseData.title} - Examen`);
+      formData.append("passingScore", String(passingScore));
+      const res = await fetch("/api/proxy/exams", { method: "POST", body: formData });
+      if (!res.ok) { toast.error("Error al guardar el examen"); return; }
+      const saved = await res.json();
+      setExamData(saved);
+      setParsedQuestions([]);
+      setXlsxFile(null);
+      setShowReplaceExam(false);
+      toast.success("Examen guardado exitosamente");
+    } catch {
+      toast.error("Error al guardar el examen");
+    } finally {
+      setSavingExam(false);
+    }
+  };
+
   if (loading) return <div className="p-10 text-center text-muted-foreground animate-pulse">Cargando Constructor...</div>;
   if (!courseData) return <div className="p-10 text-center">Curso no encontrado.</div>;
 
@@ -367,8 +449,8 @@ export default function CourseBuilderPage() {
           <TabsTrigger value="curriculum" className="data-[state=active]:bg-transparent data-[state=active]:border-b-2 data-[state=active]:border-warning data-[state=active]:text-warning rounded-none h-full px-0 gap-2 font-bold text-xs">
             <LayoutDashboard className="h-4 w-4" /> Temario y Lecciones
           </TabsTrigger>
-          <TabsTrigger value="s3" className="data-[state=active]:bg-transparent data-[state=active]:border-b-2 data-[state=active]:border-warning data-[state=active]:text-warning rounded-none h-full px-0 gap-2 font-bold text-xs">
-            <Database className="h-4 w-4" /> Repositorio AWS (S3)
+          <TabsTrigger value="examen" className="data-[state=active]:bg-transparent data-[state=active]:border-b-2 data-[state=active]:border-warning data-[state=active]:text-warning rounded-none h-full px-0 gap-2 font-bold text-xs">
+            <ClipboardList className="h-4 w-4" /> Examen
           </TabsTrigger>
         </TabsList>
 
@@ -482,6 +564,238 @@ export default function CourseBuilderPage() {
                </Card>
             </div>
           </div>
+        </TabsContent>
+
+        <TabsContent value="examen" className="mt-8">
+          {examLoading ? (
+            <div className="flex items-center justify-center py-20">
+              <Loader2 className="h-8 w-8 animate-spin text-warning" />
+            </div>
+          ) : examData && !showReplaceExam ? (
+            <div className="space-y-6">
+              <Card className="bg-[#0B101A] border-border/40">
+                <CardContent className="p-6">
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="flex items-center gap-4">
+                      <div className="h-12 w-12 rounded-full bg-warning/10 flex items-center justify-center shrink-0">
+                        <Award className="h-6 w-6 text-warning" />
+                      </div>
+                      <div>
+                        <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Examen Configurado</p>
+                        <h3 className="font-bold text-lg">{examData.title}</h3>
+                        <div className="flex items-center gap-4 mt-1">
+                          <span className="text-xs text-muted-foreground">{examData.questions?.length ?? 0} preguntas</span>
+                          <span className="text-xs text-muted-foreground">Mínimo para aprobar: <span className="text-warning font-bold">{examData.passingScore}%</span></span>
+                        </div>
+                      </div>
+                    </div>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="border-border/40 bg-surface-secondary/20 text-xs gap-2 shrink-0"
+                      onClick={() => setShowReplaceExam(true)}
+                    >
+                      <Upload className="h-3 w-3" /> Reemplazar
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <div className="space-y-2">
+                <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Preguntas del Examen</p>
+                {(examData.questions ?? []).map((q: any, idx: number) => (
+                  <Card key={q.id ?? idx} className="bg-[#0B101A] border-border/40">
+                    <CardContent className="p-4">
+                      <p className="text-sm font-bold mb-3">
+                        <span className="text-warning mr-2">{idx + 1}.</span>{q.text}
+                      </p>
+                      <div className="grid grid-cols-2 gap-2">
+                        {[
+                          { label: "A", value: q.optionA },
+                          { label: "B", value: q.optionB },
+                          { label: "C", value: q.optionC },
+                          { label: "D", value: q.optionD },
+                        ].map(opt => (
+                          <div key={opt.label} className="flex items-center gap-2 bg-surface-secondary/20 rounded-lg px-3 py-2">
+                            <span className="text-[10px] font-bold text-muted-foreground w-4 shrink-0">{opt.label}.</span>
+                            <span className="text-xs">{opt.value}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            </div>
+          ) : (
+            <div className="max-w-3xl space-y-8">
+              {/* Plantilla descargable */}
+              <div className="flex items-center justify-between p-4 rounded-xl bg-surface-secondary/20 border border-border/40">
+                <div className="flex items-center gap-3">
+                  <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+                    <FileText className="h-5 w-5 text-primary" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-bold">Plantilla de Examen</p>
+                    <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Excel con 5 preguntas de ejemplo — reemplaza con las tuyas</p>
+                  </div>
+                </div>
+                <a href="/api/exam-template" download="plantilla-examen.xlsx">
+                  <Button variant="outline" size="sm" className="gap-2 border-border/40 bg-surface-secondary/30 text-xs shrink-0">
+                    <UploadCloud className="h-3 w-3" /> Descargar Plantilla
+                  </Button>
+                </a>
+              </div>
+
+              {showReplaceExam && (
+                <div className="flex items-center gap-3 p-4 rounded-xl bg-warning/10 border border-warning/30">
+                  <AlertCircle className="h-5 w-5 text-warning shrink-0" />
+                  <div className="flex-1">
+                    <p className="text-sm font-bold text-warning">Reemplazando examen existente</p>
+                    <p className="text-xs text-muted-foreground">Los intentos ya registrados de los alumnos se conservan. Se creará un nuevo examen activo.</p>
+                  </div>
+                  <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0" onClick={() => setShowReplaceExam(false)}>
+                    <X className="h-4 w-4" />
+                  </Button>
+                </div>
+              )}
+
+              {/* Paso 1: Subir Excel */}
+              <div className="space-y-4">
+                <div className="flex items-center gap-3">
+                  <div className="h-7 w-7 rounded-full bg-warning text-warning-foreground flex items-center justify-center text-xs font-bold shrink-0">1</div>
+                  <div>
+                    <p className="font-bold text-sm">Subir Archivo Excel</p>
+                    <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Formato: 6 columnas — Pregunta | OpA | OpB | OpC | OpD | Correcta (A/B/C/D)</p>
+                  </div>
+                </div>
+                <div
+                  onClick={() => document.getElementById("xlsx-upload")?.click()}
+                  className="border-2 border-dashed border-border/40 rounded-xl p-8 flex flex-col items-center justify-center gap-3 bg-surface-secondary/20 hover:bg-surface-secondary/40 transition-all cursor-pointer group"
+                >
+                  <input
+                    type="file"
+                    id="xlsx-upload"
+                    className="hidden"
+                    accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                    onChange={(e) => {
+                      const f = e.target.files?.[0] ?? null;
+                      setXlsxFile(f);
+                      setParsedQuestions([]);
+                      e.target.value = "";
+                    }}
+                  />
+                  {xlsxFile ? (
+                    <div className="flex flex-col items-center gap-2">
+                      <CheckCircle2 className="h-10 w-10 text-green-500" />
+                      <p className="text-sm font-bold text-green-500">{xlsxFile.name}</p>
+                      <p className="text-[10px] text-muted-foreground uppercase">Click para cambiar archivo</p>
+                    </div>
+                  ) : (
+                    <>
+                      <div className="h-12 w-12 rounded-full bg-surface-secondary flex items-center justify-center group-hover:scale-110 transition-transform">
+                        <Upload className="h-6 w-6 text-muted-foreground" />
+                      </div>
+                      <div className="text-center">
+                        <p className="text-sm font-bold">Arrastra o selecciona tu archivo Excel</p>
+                        <p className="text-[10px] text-muted-foreground mt-1 uppercase">Solo archivos .xlsx</p>
+                      </div>
+                    </>
+                  )}
+                </div>
+              </div>
+
+              {/* Paso 2: Vista previa */}
+              <div className="space-y-4">
+                <div className="flex items-center gap-3">
+                  <div className={cn("h-7 w-7 rounded-full flex items-center justify-center text-xs font-bold shrink-0", xlsxFile ? "bg-warning text-warning-foreground" : "bg-surface-secondary text-muted-foreground")}>2</div>
+                  <div>
+                    <p className="font-bold text-sm">Vista Previa de Preguntas</p>
+                    <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Verifica que el archivo se leyó correctamente antes de guardar</p>
+                  </div>
+                </div>
+                <Button
+                  onClick={handleParseXlsx}
+                  disabled={!xlsxFile || isParsing}
+                  variant="outline"
+                  className="gap-2 border-border/40 bg-surface-secondary/20 h-10 text-xs"
+                >
+                  {isParsing ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileText className="h-4 w-4" />}
+                  {isParsing ? "Procesando..." : "Generar Vista Previa"}
+                </Button>
+                {parsedQuestions.length > 0 && (
+                  <div className="rounded-xl border border-border/40 overflow-hidden">
+                    <div className="p-3 bg-surface-secondary/20 border-b border-border/20 flex items-center justify-between">
+                      <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+                        {parsedQuestions.length} preguntas detectadas
+                      </span>
+                      <Badge className="bg-green-500/10 text-green-500 border border-green-500/30 text-[10px]">Listo para guardar</Badge>
+                    </div>
+                    <div className="max-h-80 overflow-y-auto divide-y divide-border/10">
+                      {parsedQuestions.map((q: any, idx: number) => (
+                        <div key={idx} className="p-4 hover:bg-white/5">
+                          <p className="text-xs font-bold mb-2">
+                            <span className="text-warning mr-2">{idx + 1}.</span>{q.text}
+                          </p>
+                          <div className="grid grid-cols-2 gap-1">
+                            {["A", "B", "C", "D"].map(l => (
+                              <span key={l} className="text-[10px] text-muted-foreground">
+                                <span className="font-bold text-foreground/60">{l}.</span> {q[`option${l}`]}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Paso 3: Configurar score */}
+              <div className="space-y-4">
+                <div className="flex items-center gap-3">
+                  <div className={cn("h-7 w-7 rounded-full flex items-center justify-center text-xs font-bold shrink-0", parsedQuestions.length > 0 ? "bg-warning text-warning-foreground" : "bg-surface-secondary text-muted-foreground")}>3</div>
+                  <div>
+                    <p className="font-bold text-sm">Configurar Aprobación</p>
+                    <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Porcentaje mínimo requerido para obtener el certificado</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-4">
+                  <div className="relative w-32">
+                    <Input
+                      type="number"
+                      min={1}
+                      max={100}
+                      value={passingScore}
+                      onChange={(e) => setPassingScore(Math.min(100, Math.max(1, Number(e.target.value))))}
+                      className="bg-surface-secondary/30 border-border/40 h-10 text-center text-sm font-bold pr-8"
+                    />
+                    <span className="absolute right-3 top-2.5 text-sm text-muted-foreground">%</span>
+                  </div>
+                  <p className="text-xs text-muted-foreground">El alumno debe responder correctamente al menos el <span className="text-warning font-bold">{passingScore}%</span> de las preguntas.</p>
+                </div>
+              </div>
+
+              {/* Guardar */}
+              <div className="pt-4 border-t border-border/20 space-y-2">
+                <Button
+                  onClick={handleSaveExam}
+                  disabled={!xlsxFile || parsedQuestions.length === 0 || savingExam}
+                  className="bg-warning hover:bg-warning/90 text-warning-foreground font-bold h-11 px-10 gap-2"
+                >
+                  {savingExam ? <Loader2 className="h-4 w-4 animate-spin" /> : <Award className="h-4 w-4" />}
+                  {savingExam ? "Guardando Examen..." : "Guardar Examen"}
+                </Button>
+                <p className="text-[10px] text-muted-foreground">
+                  {!xlsxFile
+                    ? "Sube un archivo Excel para continuar"
+                    : parsedQuestions.length === 0
+                    ? "Genera la vista previa para verificar las preguntas"
+                    : `${parsedQuestions.length} preguntas listas — score de aprobación: ${passingScore}%`}
+                </p>
+              </div>
+            </div>
+          )}
         </TabsContent>
       </Tabs>
 

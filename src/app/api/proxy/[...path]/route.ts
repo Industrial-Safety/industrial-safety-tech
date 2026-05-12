@@ -60,13 +60,33 @@ export async function POST(req: NextRequest, { params }: { params: { path: strin
     if (!isPublic && invalidSession(session)) return NextResponse.json({ error: "No session" }, { status: 401 })
     const targetUrl = buildTargetUrl(req, path)
 
+    const contentType = req.headers.get("content-type") ?? ""
+
+    // Multipart form-data (file uploads — e.g. exam xlsx)
+    if (contentType.includes("multipart/form-data")) {
+        const formData = await req.formData()
+        const fetchHeaders: Record<string, string> = {}
+        if (session && (session as any).accessToken) {
+            fetchHeaders["Authorization"] = `Bearer ${(session as any).accessToken}`
+        }
+        try {
+            const response = await fetch(targetUrl, {
+                method: "POST",
+                headers: fetchHeaders,
+                body: formData,
+            })
+            const data = await safeJson(response)
+            return NextResponse.json(data, { status: response.status })
+        } catch (error) {
+            console.error("Proxy POST multipart Error:", error)
+            return NextResponse.json({ error: "Proxy error" }, { status: 500 })
+        }
+    }
+
     let body = {}
     try {
         body = await req.json()
     } catch (e) {}
-
-    console.log("DEBUG [Proxy POST] Target:", targetUrl);
-    console.log("DEBUG [Proxy POST] Body:", body);
 
     const postHeaders: Record<string, string> = { "Content-Type": "application/json" }
     if (session && (session as any).accessToken) {

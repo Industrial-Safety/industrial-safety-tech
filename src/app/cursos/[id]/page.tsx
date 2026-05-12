@@ -21,6 +21,7 @@ import {
   Image as ImageIcon,
 } from "lucide-react";
 import { CoursePreviewModal } from "@/components/courses/course-preview-modal";
+import { auth } from "@/auth";
 
 interface LectureFromAPI {
   title: string;
@@ -75,13 +76,34 @@ async function getCourse(id: string): Promise<CourseDetailFromAPI | null> {
   }
 }
 
+async function checkAlreadyOwned(courseId: string, keycloakId: string, accessToken: string): Promise<boolean> {
+  try {
+    const res = await fetch(
+      `${process.env.API_URL}/api/v1/orders/by-user/${keycloakId}`,
+      { headers: { Authorization: `Bearer ${accessToken}` }, cache: "no-store" }
+    );
+    if (!res.ok) return false;
+    const orders: any[] = await res.json();
+    return orders.some(
+      o => o.orderStatus === "COMPLETED" &&
+        (o.orderLineItemsList ?? []).some((item: any) => item.idCurso === courseId)
+    );
+  } catch {
+    return false;
+  }
+}
+
 export default async function CourseDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const course = await getCourse(id);
+  const [course, session] = await Promise.all([getCourse(id), auth()]);
 
   if (!course) notFound();
 
   const courseId = course._id ?? course.id ?? id;
+
+  const alreadyOwned = session?.keycloakId && session?.accessToken
+    ? await checkAlreadyOwned(courseId, session.keycloakId as string, session.accessToken as string)
+    : false;
   const price = course.details?.precio ? `$${course.details.precio.toFixed(2)}` : "$0.00";
   const rating = course.reviews?.averageRating ?? 0;
   const reviewCount = course.reviews?.totalReviews ?? 0;
@@ -309,44 +331,58 @@ export default async function CourseDetailPage({ params }: { params: Promise<{ i
                 courseTitle={course.title}
               />
               <div className="p-6">
-                <div className="text-3xl font-bold text-foreground mb-6">{price}</div>
-                <AddToCartButton
-                  courseId={courseId}
-                  title={course.title}
-                  price={price}
-                  image={course.coverImageUrl ?? ""}
-                  instructorName={course.teacher?.name ?? "Instructor"}
-                />
-                <Button variant="outline" className="w-full mb-6 h-12 border-slate-600 hover:bg-slate-800">
-                  Comprar ahora
-                </Button>
-                <div className="text-center text-xs text-muted mb-6">
-                  Garantía de reembolso de 30 días
-                </div>
-
-                <h4 className="font-semibold text-foreground mb-3">Este curso incluye:</h4>
-                <ul className="space-y-3 text-sm text-slate-300 mb-6">
-                  <li className="flex items-center gap-3">
-                    <MonitorPlay className="h-4 w-4 text-slate-400" /> {duration} de video bajo demanda
-                  </li>
-                  {totalLectures > 0 && (
-                    <li className="flex items-center gap-3">
-                      <FileText className="h-4 w-4 text-slate-400" /> {totalLectures} lecciones
-                    </li>
-                  )}
-                  <li className="flex items-center gap-3">
-                    <Globe className="h-4 w-4 text-slate-400" /> Acceso en dispositivos móviles y TV
-                  </li>
-                  <li className="flex items-center gap-3">
-                    <Award className="h-4 w-4 text-slate-400" /> Certificado de finalización
-                  </li>
-                </ul>
-
-                <div className="border-t border-slate-700 pt-4">
-                  <Link href="#" className="text-sm font-semibold text-slate-300 hover:text-white transition-colors underline underline-offset-4 decoration-slate-600">
-                    Aplicar cupón
-                  </Link>
-                </div>
+                {alreadyOwned ? (
+                  <div className="space-y-4">
+                    <div className="flex items-center gap-2 text-green-400 font-semibold text-sm bg-green-400/10 border border-green-400/20 rounded-lg px-4 py-3">
+                      <CheckCircle2 className="h-5 w-5 shrink-0" />
+                      Ya tienes este curso
+                    </div>
+                    <Link href={`/student/learning/${courseId}`} className="block">
+                      <Button className="w-full h-12 text-base font-bold bg-amber-500 hover:bg-amber-600 text-slate-950 shadow-lg shadow-amber-500/20">
+                        <PlayCircle className="mr-2 h-5 w-5" /> Ir a aprender
+                      </Button>
+                    </Link>
+                  </div>
+                ) : (
+                  <>
+                    <div className="text-3xl font-bold text-foreground mb-6">{price}</div>
+                    <AddToCartButton
+                      courseId={courseId}
+                      title={course.title}
+                      price={price}
+                      image={course.coverImageUrl ?? ""}
+                      instructorName={course.teacher?.name ?? "Instructor"}
+                    />
+                    <Button variant="outline" className="w-full mb-6 h-12 border-slate-600 hover:bg-slate-800">
+                      Comprar ahora
+                    </Button>
+                    <div className="text-center text-xs text-muted mb-6">
+                      Garantía de reembolso de 30 días
+                    </div>
+                    <h4 className="font-semibold text-foreground mb-3">Este curso incluye:</h4>
+                    <ul className="space-y-3 text-sm text-slate-300 mb-6">
+                      <li className="flex items-center gap-3">
+                        <MonitorPlay className="h-4 w-4 text-slate-400" /> {duration} de video bajo demanda
+                      </li>
+                      {totalLectures > 0 && (
+                        <li className="flex items-center gap-3">
+                          <FileText className="h-4 w-4 text-slate-400" /> {totalLectures} lecciones
+                        </li>
+                      )}
+                      <li className="flex items-center gap-3">
+                        <Globe className="h-4 w-4 text-slate-400" /> Acceso en dispositivos móviles y TV
+                      </li>
+                      <li className="flex items-center gap-3">
+                        <Award className="h-4 w-4 text-slate-400" /> Certificado de finalización
+                      </li>
+                    </ul>
+                    <div className="border-t border-slate-700 pt-4">
+                      <Link href="#" className="text-sm font-semibold text-slate-300 hover:text-white transition-colors underline underline-offset-4 decoration-slate-600">
+                        Aplicar cupón
+                      </Link>
+                    </div>
+                  </>
+                )}
               </div>
             </div>
           </div>
@@ -355,25 +391,41 @@ export default async function CourseDetailPage({ params }: { params: Promise<{ i
           <div className="block lg:hidden mt-8">
             <div className="w-full bg-surface rounded-xl border border-slate-700 shadow-xl overflow-hidden">
               <div className="p-6">
-                <div className="text-3xl font-bold text-foreground mb-6">{price}</div>
-                <AddToCartButton
-                  courseId={courseId}
-                  title={course.title}
-                  price={price}
-                  image={course.coverImageUrl ?? ""}
-                  instructorName={course.teacher?.name ?? "Instructor"}
-                />
-                <Button variant="outline" className="w-full mb-6 h-12 border-slate-600 hover:bg-slate-800">
-                  Comprar ahora
-                </Button>
-                <div className="text-center text-xs text-muted mb-6">
-                  Garantía de reembolso de 30 días
-                </div>
-                <div className="border-t border-slate-700 pt-4 text-center">
-                  <Link href="#" className="text-sm font-semibold text-slate-300 hover:text-white transition-colors underline underline-offset-4 decoration-slate-600">
-                    Aplicar cupón
-                  </Link>
-                </div>
+                {alreadyOwned ? (
+                  <div className="space-y-4">
+                    <div className="flex items-center gap-2 text-green-400 font-semibold text-sm bg-green-400/10 border border-green-400/20 rounded-lg px-4 py-3">
+                      <CheckCircle2 className="h-5 w-5 shrink-0" />
+                      Ya tienes este curso
+                    </div>
+                    <Link href={`/student/learning/${courseId}`} className="block">
+                      <Button className="w-full h-12 text-base font-bold bg-amber-500 hover:bg-amber-600 text-slate-950 shadow-lg shadow-amber-500/20">
+                        <PlayCircle className="mr-2 h-5 w-5" /> Ir a aprender
+                      </Button>
+                    </Link>
+                  </div>
+                ) : (
+                  <>
+                    <div className="text-3xl font-bold text-foreground mb-6">{price}</div>
+                    <AddToCartButton
+                      courseId={courseId}
+                      title={course.title}
+                      price={price}
+                      image={course.coverImageUrl ?? ""}
+                      instructorName={course.teacher?.name ?? "Instructor"}
+                    />
+                    <Button variant="outline" className="w-full mb-6 h-12 border-slate-600 hover:bg-slate-800">
+                      Comprar ahora
+                    </Button>
+                    <div className="text-center text-xs text-muted mb-6">
+                      Garantía de reembolso de 30 días
+                    </div>
+                    <div className="border-t border-slate-700 pt-4 text-center">
+                      <Link href="#" className="text-sm font-semibold text-slate-300 hover:text-white transition-colors underline underline-offset-4 decoration-slate-600">
+                        Aplicar cupón
+                      </Link>
+                    </div>
+                  </>
+                )}
               </div>
             </div>
           </div>

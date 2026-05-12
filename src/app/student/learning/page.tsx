@@ -30,9 +30,9 @@ export default function MiAprendizajePage() {
   const [tab, setTab] = useState<FilterTab>("all");
 
   useEffect(() => {
-    if (!session?.dbId) return;
-    loadCourses(session.dbId as string);
-  }, [session?.dbId]);
+    if (!session?.keycloakId) return;
+    loadCourses(session.keycloakId as string);
+  }, [session?.keycloakId]);
 
   const loadCourses = async (userId: string) => {
     setLoading(true);

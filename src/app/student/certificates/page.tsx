@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useSession } from "next-auth/react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -9,8 +10,6 @@ import {
   Share2,
   Award,
   Calendar,
-  Clock,
-  FileText,
   CheckCircle,
   ExternalLink,
   Copy,
@@ -18,317 +17,180 @@ import {
   MessageCircle,
   Link as LinkIcon,
   Globe,
-  ImageOff
+  Loader2,
 } from "lucide-react";
-import { Avatar } from "@/components/ui/avatar";
 
 interface Certificate {
-  id: string;
+  id: number;
+  courseId: string;
   courseName: string;
-  issueDate: string;
-  expiryDate: string;
-  hours: number;
-  status: "active" | "expired" | "expiring-soon";
-  credentialId: string;
-  instructor: string;
+  instructorName: string;
   score: number;
-  imageUrl?: string;
+  issuedAt: string;
+  certificateUrl: string;
 }
 
-const certificates: Certificate[] = [
-  {
-    id: "1",
-    courseName: "Uso Correcto de EPP",
-    issueDate: "2025-03-15",
-    expiryDate: "2027-03-15",
-    hours: 20,
-    status: "active",
-    credentialId: "EPP-2025-001234",
-    instructor: "Ing. Carlos Mendoza",
-    score: 95,
-    imageUrl: "https://images.unsplash.com/photo-1581091226825-a6a2a5aee158?w=400&q=80"
-  },
-  {
-    id: "2",
-    courseName: "Seguridad en Alturas",
-    issueDate: "2025-01-20",
-    expiryDate: "2027-01-20",
-    hours: 40,
-    status: "active",
-    credentialId: "ALT-2025-005678",
-    instructor: "Lic. Ana Torres",
-    score: 92,
-    imageUrl: "https://images.unsplash.com/photo-1541888946425-d81bb19240f5?w=400&q=80"
-  },
-  {
-    id: "3",
-    courseName: "Primeros Auxilios Básicos",
-    issueDate: "2024-06-10",
-    expiryDate: "2025-06-10",
-    hours: 16,
-    status: "expiring-soon",
-    credentialId: "PA-2024-009012",
-    instructor: "Dr. Roberto Silva",
-    score: 88,
-    imageUrl: "https://images.unsplash.com/photo-1516574187841-69301976e495?w=400&q=80"
-  },
-  {
-    id: "4",
-    courseName: "Manejo de Extintores",
-    issueDate: "2024-02-05",
-    expiryDate: "2025-02-05",
-    hours: 8,
-    status: "expired",
-    credentialId: "EXT-2024-003456",
-    instructor: "Ing. Carlos Mendoza",
-    score: 90,
-    imageUrl: "https://invalid-url.example.com/image.jpg" // URL inválida para demostrar fallback
-  }
-];
-
 export default function StudentCertificatesPage() {
-  const [shareModalOpen, setShareModalOpen] = useState(false);
-  const [selectedCertificate, setSelectedCertificate] = useState<Certificate | null>(null);
+  const { data: session } = useSession();
+  const [certificates, setCertificates] = useState<Certificate[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [shareModal, setShareModal] = useState<Certificate | null>(null);
   const [copied, setCopied] = useState(false);
-  const [imageErrors, setImageErrors] = useState<Record<string, boolean>>({});
 
-  const getStatusBadge = (status: Certificate["status"]) => {
-    switch (status) {
-      case "active":
-        return <Badge className="bg-success/10 text-success border-success/30">Vigente</Badge>;
-      case "expiring-soon":
-        return <Badge className="bg-warning/10 text-warning border-warning/30">Por Vencer</Badge>;
-      case "expired":
-        return <Badge className="bg-danger/10 text-danger border-danger/30">Vencido</Badge>;
-    }
+  useEffect(() => {
+    if (!session?.keycloakId) return;
+    fetch(`/api/proxy/certificates/student/${session.keycloakId}`)
+      .then(r => r.ok ? r.json() : [])
+      .then(setCertificates)
+      .catch(() => setCertificates([]))
+      .finally(() => setLoading(false));
+  }, [session?.keycloakId]);
+
+  const handleDownload = (cert: Certificate) => {
+    window.open(cert.certificateUrl, "_blank", "noopener,noreferrer");
   };
 
-  const handleShare = (cert: Certificate) => {
-    setSelectedCertificate(cert);
-    setShareModalOpen(true);
-  };
-
-  const handleCopyLink = () => {
-    navigator.clipboard.writeText(`https://prevenciontech.com/verify/${selectedCertificate?.credentialId}`);
+  const handleCopy = (url: string) => {
+    navigator.clipboard.writeText(url);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
 
-  const handleDownload = (cert: Certificate) => {
-    // Simulación de descarga de PDF
-    alert(`Descargando certificado: ${cert.courseName}.pdf`);
-  };
+  const formatDate = (iso: string) =>
+    new Date(iso).toLocaleDateString("es-ES", { day: "numeric", month: "short", year: "numeric" });
 
-  const handleImageError = (certId: string) => {
-    setImageErrors(prev => ({ ...prev, [certId]: true }));
-  };
+  const shareViaLinkedIn = (url: string) =>
+    window.open(`https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(url)}`, "_blank");
 
-  const activeCertificates = certificates.filter(c => c.status === "active" || c.status === "expiring-soon");
-  const expiredCertificates = certificates.filter(c => c.status === "expired");
+  const shareViaWhatsApp = (cert: Certificate) =>
+    window.open(`https://wa.me/?text=${encodeURIComponent(`Obtuve mi certificado en "${cert.courseName}" 🎓 Descárgalo aquí: ${cert.certificateUrl}`)}`, "_blank");
+
+  const shareViaEmail = (cert: Certificate) =>
+    window.open(`mailto:?subject=${encodeURIComponent(`Certificado: ${cert.courseName}`)}&body=${encodeURIComponent(`Hola, comparto mi certificado del curso "${cert.courseName}".\n\nDescárgalo aquí: ${cert.certificateUrl}`)}`, "_blank");
 
   return (
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
-      
+
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold tracking-tight mb-2">Mis Certificados</h1>
-          <p className="text-muted">Gestiona, comparte y descarga tus certificaciones de seguridad industrial.</p>
+          <p className="text-muted">Descarga y comparte tus certificaciones de seguridad industrial.</p>
         </div>
-        <div className="flex items-center gap-3">
+        {!loading && (
           <div className="flex items-center gap-2 text-sm text-muted">
             <CheckCircle className="h-4 w-4 text-success" />
-            <span>{activeCertificates.length} certificados activos</span>
+            <span>{certificates.length} certificado{certificates.length !== 1 ? "s" : ""}</span>
           </div>
-        </div>
+        )}
       </div>
 
-      {/* Stats Cards */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      {/* Stats */}
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         <Card className="bg-surface/40 border-border">
-          <CardContent className="p-4">
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-primary/10 rounded-lg">
-                <Award className="h-5 w-5 text-primary" />
-              </div>
-              <div>
-                <p className="text-xs text-muted">Total Certificados</p>
-                <p className="text-2xl font-bold">{certificates.length}</p>
-              </div>
+          <CardContent className="p-4 flex items-center gap-3">
+            <div className="p-2 bg-primary/10 rounded-lg">
+              <Award className="h-5 w-5 text-primary" />
+            </div>
+            <div>
+              <p className="text-xs text-muted">Total Certificados</p>
+              <p className="text-2xl font-bold">{loading ? "—" : certificates.length}</p>
             </div>
           </CardContent>
         </Card>
         <Card className="bg-surface/40 border-border">
-          <CardContent className="p-4">
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-success/10 rounded-lg">
-                <CheckCircle className="h-5 w-5 text-success" />
-              </div>
-              <div>
-                <p className="text-xs text-muted">Certificados Vigentes</p>
-                <p className="text-2xl font-bold">{activeCertificates.length}</p>
-              </div>
+          <CardContent className="p-4 flex items-center gap-3">
+            <div className="p-2 bg-success/10 rounded-lg">
+              <CheckCircle className="h-5 w-5 text-success" />
+            </div>
+            <div>
+              <p className="text-xs text-muted">Puntaje Promedio</p>
+              <p className="text-2xl font-bold">
+                {loading || certificates.length === 0
+                  ? "—"
+                  : Math.round(certificates.reduce((s, c) => s + c.score, 0) / certificates.length) + "%"}
+              </p>
             </div>
           </CardContent>
         </Card>
         <Card className="bg-surface/40 border-border">
-          <CardContent className="p-4">
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-warning/10 rounded-lg">
-                <Clock className="h-5 w-5 text-warning" />
-              </div>
-              <div>
-                <p className="text-xs text-muted">Por Vencer</p>
-                <p className="text-2xl font-bold">{certificates.filter(c => c.status === "expiring-soon").length}</p>
-              </div>
+          <CardContent className="p-4 flex items-center gap-3">
+            <div className="p-2 bg-warning/10 rounded-lg">
+              <Award className="h-5 w-5 text-warning" />
             </div>
-          </CardContent>
-        </Card>
-        <Card className="bg-surface/40 border-border">
-          <CardContent className="p-4">
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-muted/10 rounded-lg">
-                <FileText className="h-5 w-5 text-muted" />
-              </div>
-              <div>
-                <p className="text-xs text-muted">Horas Certificadas</p>
-                <p className="text-2xl font-bold">{certificates.reduce((acc, c) => acc + c.hours, 0)}</p>
-              </div>
+            <div>
+              <p className="text-xs text-muted">Mejor Puntaje</p>
+              <p className="text-2xl font-bold">
+                {loading || certificates.length === 0
+                  ? "—"
+                  : Math.max(...certificates.map(c => c.score)) + "%"}
+              </p>
             </div>
           </CardContent>
         </Card>
       </div>
 
-      {/* Certificados Activos */}
-      <section>
-        <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
-          <CheckCircle className="h-5 w-5 text-success" /> Certificados Vigentes
-        </h2>
-        <div className="grid gap-4 md:grid-cols-2">
-          {activeCertificates.map((cert) => (
-            <Card key={cert.id} className="bg-surface/60 border-border overflow-hidden hover:border-primary/50 transition-colors group">
-              <CardContent className="p-0">
-                <div className="flex flex-col sm:flex-row">
-                  {/* Certificate Preview with Image or Fallback Icon */}
-                  <div className="sm:w-2/5 relative bg-gradient-to-br from-primary/10 to-primary/5">
-                    {cert.imageUrl && !imageErrors[cert.id] ? (
-                      <div className="relative h-48 w-full">
-                        <img
-                          src={cert.imageUrl}
-                          alt={cert.courseName}
-                          className="h-full w-full object-cover"
-                          onError={() => handleImageError(cert.id)}
-                        />
-                        <div className="absolute inset-0 bg-gradient-to-t from-surface via-surface/20 to-transparent"></div>
-                        <div className="absolute top-3 right-3">
-                          {getStatusBadge(cert.status)}
-                        </div>
-                      </div>
-                    ) : (
-                      <div className="h-48 w-full flex flex-col items-center justify-center p-6">
-                        <div className="h-20 w-20 rounded-full bg-primary/10 flex items-center justify-center mb-4">
-                          <Award className="h-10 w-10 text-primary/50" />
-                        </div>
-                        <p className="text-xs text-muted text-center">Certificado de Completion</p>
-                        {cert.imageUrl && (
-                          <div className="flex items-center gap-1 mt-2 text-[10px] text-muted">
-                            <ImageOff className="h-3 w-3" />
-                            <span>Imagen no disponible</span>
-                          </div>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                  
-                  {/* Certificate Info */}
-                  <div className="sm:w-3/5 p-5">
-                    <h3 className="font-bold text-lg mb-2">{cert.courseName}</h3>
-                    
-                    <div className="space-y-2 text-sm text-muted mb-4">
-                      <div className="flex items-center gap-2">
-                        <Calendar className="h-4 w-4" />
-                        <span>Expedido: {new Date(cert.issueDate).toLocaleDateString('es-ES', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Clock className="h-4 w-4" />
-                        <span>Vence: {new Date(cert.expiryDate).toLocaleDateString('es-ES', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <FileText className="h-4 w-4" />
-                        <span>ID: {cert.credentialId}</span>
-                      </div>
-                    </div>
-
-                    <div className="flex items-center justify-between">
-                      <div className="text-xs text-muted">
-                        <span className="font-semibold text-foreground">{cert.hours} horas</span> • Nota: <span className="font-semibold text-foreground">{cert.score}%</span>
-                      </div>
-                    </div>
-
-                    {/* Actions */}
-                    <div className="flex gap-2 mt-4">
-                      <Button 
-                        variant="outline" 
-                        size="sm" 
-                        className="flex-1 border-primary/30 text-primary hover:bg-primary/10"
-                        onClick={() => handleDownload(cert)}
-                      >
-                        <Download className="h-4 w-4 mr-1" />
-                        Descargar
-                      </Button>
-                      <Button 
-                        variant="outline" 
-                        size="sm" 
-                        className="flex-1 border-primary/30 text-primary hover:bg-primary/10"
-                        onClick={() => handleShare(cert)}
-                      >
-                        <Share2 className="h-4 w-4 mr-1" />
-                        Compartir
-                      </Button>
-                    </div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
+      {/* List */}
+      {loading ? (
+        <div className="flex items-center justify-center h-48">
+          <Loader2 className="h-8 w-8 animate-spin text-muted" />
         </div>
-      </section>
-
-      {/* Certificados Vencidos */}
-      {expiredCertificates.length > 0 && (
+      ) : certificates.length === 0 ? (
+        <Card className="bg-surface/40 border-border p-12 text-center">
+          <Award className="h-16 w-16 text-muted mx-auto mb-4 opacity-30" />
+          <p className="text-muted text-lg font-medium">Aún no tienes certificados</p>
+          <p className="text-muted text-sm mt-1">Completa un examen con nota aprobatoria para obtener tu primer certificado.</p>
+        </Card>
+      ) : (
         <section>
-          <h2 className="text-xl font-semibold mb-4 flex items-center gap-2 text-muted">
-            <Award className="h-5 w-5" /> Certificados Vencidos
+          <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
+            <CheckCircle className="h-5 w-5 text-success" /> Certificados Obtenidos
           </h2>
           <div className="grid gap-4 md:grid-cols-2">
-            {expiredCertificates.map((cert) => (
-              <Card key={cert.id} className="bg-surface/30 border-border opacity-75">
+            {certificates.map(cert => (
+              <Card key={cert.id} className="bg-surface/60 border-border overflow-hidden hover:border-primary/50 transition-colors">
                 <CardContent className="p-5">
+                  {/* Top row */}
                   <div className="flex items-start justify-between mb-3">
-                    <div className="flex items-start gap-3">
-                      {cert.imageUrl && !imageErrors[cert.id] ? (
-                        <img
-                          src={cert.imageUrl}
-                          alt={cert.courseName}
-                          className="h-16 w-16 rounded-lg object-cover border border-border"
-                          onError={() => handleImageError(cert.id)}
-                        />
-                      ) : (
-                        <div className="h-16 w-16 rounded-lg bg-muted/50 flex items-center justify-center border border-border">
-                          <Award className="h-8 w-8 text-muted" />
-                        </div>
-                      )}
+                    <div className="flex items-center gap-3">
+                      <div className="h-12 w-12 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
+                        <Award className="h-6 w-6 text-primary" />
+                      </div>
                       <div>
-                        <h3 className="font-semibold">{cert.courseName}</h3>
-                        <p className="text-sm text-muted">Venció el {new Date(cert.expiryDate).toLocaleDateString('es-ES', { day: 'numeric', month: 'short', year: 'numeric' })}</p>
+                        <h3 className="font-bold text-base leading-tight">{cert.courseName}</h3>
+                        <p className="text-xs text-muted mt-0.5">{cert.instructorName}</p>
                       </div>
                     </div>
-                    {getStatusBadge(cert.status)}
+                    <Badge className="bg-success/10 text-success border-success/30 shrink-0">
+                      {cert.score}%
+                    </Badge>
                   </div>
+
+                  {/* Meta */}
+                  <div className="flex items-center gap-2 text-xs text-muted mb-4">
+                    <Calendar className="h-3.5 w-3.5" />
+                    <span>Expedido el {formatDate(cert.issuedAt)}</span>
+                  </div>
+
+                  {/* Actions */}
                   <div className="flex gap-2">
-                    <Button variant="outline" size="sm" className="flex-1" onClick={() => handleDownload(cert)}>
-                      <Download className="h-4 w-4 mr-1" />
-                      Descargar
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="flex-1 border-primary/30 text-primary hover:bg-primary/10"
+                      onClick={() => handleDownload(cert)}
+                    >
+                      <Download className="h-4 w-4 mr-1.5" />
+                      Descargar PDF
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="flex-1 border-primary/30 text-primary hover:bg-primary/10"
+                      onClick={() => { setShareModal(cert); setCopied(false); }}
+                    >
+                      <Share2 className="h-4 w-4 mr-1.5" />
+                      Compartir
                     </Button>
                   </div>
                 </CardContent>
@@ -339,7 +201,7 @@ export default function StudentCertificatesPage() {
       )}
 
       {/* Share Modal */}
-      {shareModalOpen && selectedCertificate && (
+      {shareModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/80 backdrop-blur-sm animate-in fade-in">
           <div className="bg-surface border border-border shadow-2xl rounded-xl w-full max-w-md overflow-hidden animate-in zoom-in-95">
             <div className="p-5 border-b border-border flex items-center justify-between">
@@ -347,65 +209,54 @@ export default function StudentCertificatesPage() {
                 <Share2 className="h-5 w-5 text-primary" />
                 <h3 className="font-bold">Compartir Certificado</h3>
               </div>
-              <button
-                onClick={() => setShareModalOpen(false)}
-                className="text-muted hover:text-foreground transition-colors"
-              >
-                ✕
-              </button>
+              <button onClick={() => setShareModal(null)} className="text-muted hover:text-foreground transition-colors">✕</button>
             </div>
-            
+
             <div className="p-5 space-y-4">
-              {/* Certificate Preview */}
+              {/* Preview */}
               <div className="text-center p-4 bg-gradient-to-br from-primary/5 to-primary/10 rounded-lg border border-primary/20">
-                {selectedCertificate.imageUrl && !imageErrors[selectedCertificate.id] ? (
-                  <img
-                    src={selectedCertificate.imageUrl}
-                    alt={selectedCertificate.courseName}
-                    className="h-24 w-full object-cover rounded-lg mb-2"
-                    onError={() => handleImageError(selectedCertificate.id)}
-                  />
-                ) : (
-                  <Award className="h-12 w-12 text-primary mx-auto mb-2" />
-                )}
-                <p className="font-semibold text-sm">{selectedCertificate.courseName}</p>
-                <p className="text-xs text-muted mt-1">ID: {selectedCertificate.credentialId}</p>
+                <Award className="h-12 w-12 text-primary mx-auto mb-2" />
+                <p className="font-semibold text-sm">{shareModal.courseName}</p>
+                <p className="text-xs text-muted mt-1">Puntaje: {shareModal.score}% · {formatDate(shareModal.issuedAt)}</p>
               </div>
 
-              {/* Share Link */}
+              {/* Copy link */}
               <div className="space-y-2">
-                <label className="text-xs font-semibold">Enlace público de verificación</label>
+                <label className="text-xs font-semibold">Enlace de descarga (válido 7 días)</label>
                 <div className="flex gap-2">
                   <input
-                    type="text"
                     readOnly
-                    value={`https://prevenciontech.com/verify/${selectedCertificate.credentialId}`}
-                    className="flex-1 px-3 py-2 text-xs bg-surface-secondary border border-border rounded-md text-muted"
+                    value={shareModal.certificateUrl}
+                    className="flex-1 px-3 py-2 text-xs bg-surface-secondary border border-border rounded-md text-muted truncate"
                   />
-                  <Button variant="outline" size="sm" onClick={handleCopyLink}>
+                  <Button variant="outline" size="sm" onClick={() => handleCopy(shareModal.certificateUrl)}>
                     {copied ? <CheckCircle className="h-4 w-4 text-success" /> : <Copy className="h-4 w-4" />}
                   </Button>
                 </div>
                 {copied && <p className="text-xs text-success">¡Enlace copiado!</p>}
               </div>
 
-              {/* Share Options */}
+              {/* Share options */}
               <div className="space-y-2">
-                <label className="text-xs font-semibold">Compartir en redes</label>
+                <label className="text-xs font-semibold">Compartir en</label>
                 <div className="grid grid-cols-4 gap-2">
-                  <Button variant="outline" size="sm" className="flex flex-col items-center gap-1 h-auto py-3">
+                  <Button variant="outline" size="sm" className="flex flex-col items-center gap-1 h-auto py-3"
+                    onClick={() => shareViaLinkedIn(shareModal.certificateUrl)}>
                     <LinkIcon className="h-5 w-5 text-[#0A66C2]" />
                     <span className="text-[10px]">LinkedIn</span>
                   </Button>
-                  <Button variant="outline" size="sm" className="flex flex-col items-center gap-1 h-auto py-3">
+                  <Button variant="outline" size="sm" className="flex flex-col items-center gap-1 h-auto py-3"
+                    onClick={() => window.open(`https://twitter.com/intent/tweet?text=${encodeURIComponent(`Obtuve mi certificado en "${shareModal.courseName}" 🎓`)}&url=${encodeURIComponent(shareModal.certificateUrl)}`, "_blank")}>
                     <Globe className="h-5 w-5 text-[#1DA1F2]" />
                     <span className="text-[10px]">Twitter</span>
                   </Button>
-                  <Button variant="outline" size="sm" className="flex flex-col items-center gap-1 h-auto py-3">
+                  <Button variant="outline" size="sm" className="flex flex-col items-center gap-1 h-auto py-3"
+                    onClick={() => shareViaEmail(shareModal)}>
                     <Mail className="h-5 w-5 text-primary" />
                     <span className="text-[10px]">Email</span>
                   </Button>
-                  <Button variant="outline" size="sm" className="flex flex-col items-center gap-1 h-auto py-3">
+                  <Button variant="outline" size="sm" className="flex flex-col items-center gap-1 h-auto py-3"
+                    onClick={() => shareViaWhatsApp(shareModal)}>
                     <MessageCircle className="h-5 w-5 text-success" />
                     <span className="text-[10px]">WhatsApp</span>
                   </Button>
@@ -413,16 +264,11 @@ export default function StudentCertificatesPage() {
               </div>
             </div>
 
-            <div className="p-4 border-t border-border bg-surface-secondary/30 flex justify-end gap-2">
-              <Button variant="ghost" onClick={() => setShareModalOpen(false)}>
-                Cancelar
-              </Button>
-              <Button onClick={() => {
-                handleCopyLink();
-                setShareModalOpen(false);
-              }}>
+            <div className="p-4 border-t border-border flex justify-end gap-2">
+              <Button variant="ghost" onClick={() => setShareModal(null)}>Cerrar</Button>
+              <Button onClick={() => handleDownload(shareModal)}>
                 <ExternalLink className="h-4 w-4 mr-2" />
-                Copiar Enlace
+                Abrir PDF
               </Button>
             </div>
           </div>

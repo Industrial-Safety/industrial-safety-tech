@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Download, FileText, Calendar, CreditCard, CheckCircle, Clock, Eye, DollarSign, Loader2, X } from "lucide-react";
+import { FileText, Calendar, CreditCard, CheckCircle, Clock, Eye, DollarSign, Loader2, X } from "lucide-react";
 import { useSession } from "next-auth/react";
 
 interface VoucherItem {
@@ -14,8 +14,7 @@ interface VoucherItem {
   paidAt: string | null;
   amount: number;
   currency: string;
-  status: "PAID" | "PENDING" | "FAILED" | "CANCELLED";
-  receiptUrl: string | null;
+  status: "COMPLETED" | "PENDING" | "FAILED" | "CANCELLED";
 }
 
 export default function StudentPaymentVouchersPage() {
@@ -25,9 +24,9 @@ export default function StudentPaymentVouchersPage() {
   const [preview, setPreview] = useState<VoucherItem | null>(null);
 
   useEffect(() => {
-    if (!session?.dbId) return;
-    fetchVouchers(session.dbId as string);
-  }, [session?.dbId]);
+    if (!session?.keycloakId) return;
+    fetchVouchers(session.keycloakId as string);
+  }, [session?.keycloakId]);
 
   const fetchVouchers = async (userId: string) => {
     setLoading(true);
@@ -37,7 +36,7 @@ export default function StudentPaymentVouchersPage() {
       const orders: any[] = await res.json();
 
       const items: VoucherItem[] = orders
-        .filter(o => o.orderStatus === "PAID")
+        .filter(o => o.orderStatus === "COMPLETED")
         .flatMap(o =>
           (o.orderLineItemsList ?? []).map((item: any) => ({
             orderNumber: o.orderNumber,
@@ -47,7 +46,6 @@ export default function StudentPaymentVouchersPage() {
             amount: Number(item.price ?? 0),
             currency: o.currency ?? "USD",
             status: o.orderStatus,
-            receiptUrl: o.receiptUrl ?? null,
           }))
         );
 
@@ -59,21 +57,10 @@ export default function StudentPaymentVouchersPage() {
     }
   };
 
-  const handleDownload = (voucher: VoucherItem) => {
-    if (!voucher.receiptUrl) {
-      alert("El recibo aún no está disponible. Intenta más tarde.");
-      return;
-    }
-    const a = document.createElement("a");
-    a.href = voucher.receiptUrl;
-    a.target = "_blank";
-    a.download = `voucher-${voucher.orderNumber}.pdf`;
-    a.click();
-  };
 
   const getStatusBadge = (status: VoucherItem["status"]) => {
     switch (status) {
-      case "PAID":
+      case "COMPLETED":
         return <Badge className="bg-success/10 text-success border-success/30">Pagado</Badge>;
       case "PENDING":
         return <Badge className="bg-warning/10 text-warning border-warning/30">Pendiente</Badge>;
@@ -189,16 +176,6 @@ export default function StudentPaymentVouchersPage() {
                       >
                         <Eye className="h-4 w-4" />
                       </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="border-primary/30 text-primary hover:bg-primary/10"
-                        onClick={() => handleDownload(voucher)}
-                        title="Descargar PDF"
-                        disabled={!voucher.receiptUrl}
-                      >
-                        <Download className="h-4 w-4" />
-                      </Button>
                     </div>
                   </div>
                 </CardContent>
@@ -269,11 +246,8 @@ export default function StudentPaymentVouchersPage() {
               </div>
             </div>
 
-            <div className="p-4 border-t border-border bg-surface-secondary/30 flex justify-end gap-2">
+            <div className="p-4 border-t border-border bg-surface-secondary/30 flex justify-end">
               <Button variant="ghost" onClick={() => setPreview(null)}>Cerrar</Button>
-              <Button onClick={() => handleDownload(preview)} disabled={!preview.receiptUrl}>
-                <Download className="h-4 w-4 mr-2" /> Descargar PDF
-              </Button>
             </div>
           </div>
         </div>

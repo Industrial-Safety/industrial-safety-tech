@@ -16,7 +16,8 @@ interface EnrolledCourse {
 }
 
 interface CourseDetail {
-  id: string;
+  id?: string;
+  _id?: string;
   title: string;
   subtitle: string;
   coverImageUrl: string | null;
@@ -28,12 +29,22 @@ export default function StudentDashboardPage() {
   const { data: session } = useSession();
   const [lastCourse, setLastCourse] = useState<{ enrollment: EnrolledCourse; detail: CourseDetail } | null>(null);
   const [lastProgress, setLastProgress] = useState(0);
+  const [completedCount, setCompletedCount] = useState(0);
+  const [studyHours, setStudyHours] = useState(0);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!session?.dbId) return;
-    fetchLastCourse(session.dbId as string);
-  }, [session?.dbId]);
+    if (!session?.keycloakId) return;
+    fetchLastCourse(session.keycloakId as string);
+  }, [session?.keycloakId]);
+
+  const parseDurationToHours = (duration: string): number => {
+    if (!duration) return 0;
+    const parts = duration.split(":").map(Number);
+    if (parts.length === 3) return parts[0] + parts[1] / 60 + parts[2] / 3600;
+    if (parts.length === 2) return parts[0] / 60 + parts[1] / 3600;
+    return 0;
+  };
 
   const fetchLastCourse = async (userId: string) => {
     try {
@@ -41,26 +52,57 @@ export default function StudentDashboardPage() {
       if (!res.ok) return;
       const orders: any[] = await res.json();
 
-      const paid = orders.filter(o => o.orderStatus === "PAID" && o.orderLineItemsList?.length > 0);
+      // Solo órdenes COMPLETADAS (pago confirmado)
+      const paid = orders.filter(o => o.orderStatus === "COMPLETED" && o.orderLineItemsList?.length > 0);
       if (paid.length === 0) return;
 
-      // Tomar el orden más reciente
-      paid.sort((a, b) => new Date(b.paidAt ?? b.createdAt).getTime() - new Date(a.paidAt ?? a.createdAt).getTime());
-      const latestItem = paid[0].orderLineItemsList[0];
+      const uniqueCourseIds = Array.from(new Set(
+        paid.flatMap((o: any) => (o.orderLineItemsList ?? []).map((i: any) => i.idCurso))
+      )) as string[];
+      setCompletedCount(uniqueCourseIds.size);
+
+      // 1 request bulk para todos los cursos; fallback a fetch individual si el endpoint no está activo
+      let courseDetails: any[] = [];
+      const bulkRes = await fetch(`/api/proxy/course/bulk?ids=${uniqueCourseIds.join(",")}`);
+      if (bulkRes.ok) courseDetails = await bulkRes.json();
+
+      // Horas de estudio acumuladas por lecciones completadas
+      let totalHours = 0;
+      for (const detail of courseDetails) {
+        if (!detail) continue;
+        const cid = detail._id ?? detail.id;
+        const done = new Set<string>(JSON.parse(localStorage.getItem(`completed_${userId}_${cid}`) ?? "[]"));
+        for (const lec of (detail.sectionList ?? []).flatMap((s: any) => s.lectureList ?? [])) {
+          if (lec.lectureType !== "EXAM" && done.has(lec.id))
+            totalHours += parseDurationToHours(lec.duration ?? "");
+        }
+      }
+      setStudyHours(Math.round(totalHours * 10) / 10);
+
+      // Último curso comprado (paidAt desc)
+      paid.sort((a, b) => new Date(b.paidAt ?? b.createdAt ?? 0).getTime() - new Date(a.paidAt ?? a.createdAt ?? 0).getTime());
+      const latestOrder = paid[0];
+      const latestItem = latestOrder.orderLineItemsList[0];
+
       const enrollment: EnrolledCourse = {
         courseId: latestItem.idCurso,
         courseName: latestItem.courseName,
-        orderNumber: paid[0].orderNumber,
-        paidAt: paid[0].paidAt,
+        orderNumber: latestOrder.orderNumber,
+        paidAt: latestOrder.paidAt,
       };
 
-      const courseRes = await fetch(`/api/proxy/course/${latestItem.idCurso}`);
-      if (!courseRes.ok) return;
-      const detail: CourseDetail = await courseRes.json();
+      // Busca detalle en bulk; si no llegó, fetch individual como fallback
+      let latestDetail = courseDetails.find((d: any) => d && (d._id ?? d.id) === latestItem.idCurso);
+      if (!latestDetail) {
+        const r = await fetch(`/api/proxy/course/${latestItem.idCurso}`);
+        if (r.ok) latestDetail = await r.json();
+      }
+      if (!latestDetail) return;
 
-      const progress = parseInt(localStorage.getItem(`progress_${latestItem.idCurso}`) ?? "0", 10);
+      const courseId = latestDetail._id ?? latestDetail.id ?? latestItem.idCurso;
+      const progress = parseInt(localStorage.getItem(`progress_${userId}_${courseId}`) ?? "0", 10);
       setLastProgress(progress);
-      setLastCourse({ enrollment, detail });
+      setLastCourse({ enrollment, detail: latestDetail });
     } catch (e) {
       console.error("Error cargando último curso:", e);
     } finally {
@@ -140,7 +182,7 @@ export default function StudentDashboardPage() {
                     </div>
 
                     <div className="mt-6">
-                      <Link href={`/student/learning/${lastCourse.detail.id}`}>
+                      <Link href={`/student/learning/${lastCourse.detail._id ?? lastCourse.detail.id ?? lastCourse.enrollment.courseId}`}>
                         <Button className="w-full sm:w-auto shadow-lg shadow-primary/20">
                           <PlayCircle className="h-4 w-4 mr-2" />
                           {lastProgress > 0 ? "Reanudar Lección" : "Empezar Curso"}
@@ -167,7 +209,7 @@ export default function StudentDashboardPage() {
                 <div className="flex justify-between items-start">
                   <div className="space-y-1">
                     <p className="text-xs font-medium text-muted">Horas de Estudio</p>
-                    <p className="text-3xl font-bold">24.5</p>
+                    <p className="text-3xl font-bold">{studyHours}</p>
                   </div>
                   <div className="p-2 bg-primary/10 rounded-lg">
                     <Clock className="w-5 h-5 text-primary" />
@@ -179,8 +221,8 @@ export default function StudentDashboardPage() {
               <CardContent className="p-6">
                 <div className="flex justify-between items-start">
                   <div className="space-y-1">
-                    <p className="text-xs font-medium text-muted">Cursos Completados</p>
-                    <p className="text-3xl font-bold">4</p>
+                    <p className="text-xs font-medium text-muted">Cursos Adquiridos</p>
+                    <p className="text-3xl font-bold">{completedCount}</p>
                   </div>
                   <div className="p-2 bg-success/10 rounded-lg">
                     <BookOpen className="w-5 h-5 text-success" />
