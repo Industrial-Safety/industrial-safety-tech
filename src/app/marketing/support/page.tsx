@@ -1,187 +1,385 @@
 "use client";
 
-import { useState } from "react";
-import { Card, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
+import { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Card } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import {
-  Headphones,
-  MessageCircle,
-  Mail,
-  Phone,
-  Search,
-  HelpCircle,
-  BookOpen,
-  Send
+  Send, Headphones, MoreVertical, User,
+  ChevronLeft, MessageSquare, Loader2, BookOpen,
 } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { useSession } from "next-auth/react";
 
-function Textarea(props: React.TextareaHTMLAttributes<HTMLTextAreaElement>) {
-  return (
-    <textarea
-      className="flex w-full rounded-md border border-border bg-surface px-3 py-2 text-sm ring-offset-background placeholder:text-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pink-500 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-      {...props}
-    />
-  );
+interface ChatMessage {
+  id: string;
+  conversationId: string;
+  senderId: string;
+  senderName: string;
+  senderRole: string;
+  content: string;
+  createdAt: string;
+  read: boolean;
 }
 
-const faqs = [
-  {
-    question: "¿Cómo creo una promoción para un curso?",
-    answer: "Ve a la sección de Cursos, selecciona el curso deseado y haz clic en 'Crear Promoción'. Completa el formulario con los detalles del descuento y envía la solicitud a Gerencia para aprobación."
-  },
-  {
-    question: "¿Cuánto tiempo tarda Gerencia en aprobar una solicitud?",
-    answer: "El tiempo promedio de respuesta es de 24-48 horas hábiles. Recibirás una notificación cuando tu solicitud sea revisada."
-  },
-  {
-    question: "¿Puedo editar un anuncio pop-up ya publicado?",
-    answer: "Sí, puedes desactivar el anuncio actual y crear uno nuevo con los cambios deseados. Los anuncios activos no pueden ser editados directamente para mantener consistencia."
-  },
-  {
-    question: "¿Cómo veo el rendimiento de mis campañas?",
-    answer: "En el Dashboard principal puedes ver métricas en tiempo real de impresiones, clicks y conversiones de todas tus campañas activas."
-  }
-];
+interface Conversation {
+  id: string;
+  type: "INSTRUCTOR" | "SUPPORT";
+  studentId: string;
+  otherPartyId: string;
+  otherPartyName: string;
+  otherPartyRole: string;
+  courseId?: string;
+  courseName?: string;
+  lastMessageAt?: string;
+  lastMessagePreview?: string;
+  unreadForStudent: number;
+}
+
+const SUPPORT_PARTY_ID = "IS-SUPPORT";
 
 export default function MarketingSupportPage() {
-  const [searchTerm, setSearchTerm] = useState("");
-  const [contactForm, setContactForm] = useState({
-    subject: "",
-    message: ""
-  });
+  const { data: session } = useSession();
+  const userId = (session as any)?.keycloakId as string | undefined;
+  const userName = session?.user?.name ?? "Usuario";
 
-  const filteredFaqs = faqs.filter(faq =>
-    faq.question.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const [conversations, setConversations] = useState<Conversation[]>([]);
+  const [activeConvId, setActiveConvId] = useState<string | null>(null);
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [loadingConvs, setLoadingConvs] = useState(true);
+  const [loadingMessages, setLoadingMessages] = useState(false);
+  const [inputText, setInputText] = useState("");
+  const [sending, setSending] = useState(false);
+  const [mobileView, setMobileView] = useState<"list" | "chat">("list");
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  useEffect(() => {
+    if (!userId) return;
+    loadConversations();
+  }, [userId]);
+
+  const loadConversations = async () => {
+    setLoadingConvs(true);
+    try {
+      const res = await fetch(`/api/proxy/chat/conversations/student/${userId}`);
+      if (res.ok) setConversations(await res.json());
+    } finally {
+      setLoadingConvs(false);
+    }
+  };
+
+  const openConversation = async (conv: Conversation | null, forceSupport = false) => {
+    stopPolling();
+    setInputText("");
+    setMobileView("chat");
+    setLoadingMessages(true);
+    try {
+      let convId = conv?.id ?? null;
+
+      if (!convId && forceSupport) {
+        const res = await fetch("/api/proxy/chat/conversations", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            type: "SUPPORT",
+            studentId: userId,
+            studentName: userName,
+            studentAvatarUrl: "",
+            otherPartyId: SUPPORT_PARTY_ID,
+            otherPartyName: "Soporte Técnico IS",
+            otherPartyRole: "Equipo de Soporte",
+            otherPartyAvatarUrl: "",
+            courseId: null,
+            courseName: null,
+          }),
+        });
+        if (!res.ok) return;
+        const newConv: Conversation = await res.json();
+        convId = newConv.id;
+        setConversations(prev => [newConv, ...prev]);
+      }
+
+      if (!convId) return;
+      setActiveConvId(convId);
+      await fetchMessages(convId);
+      startPolling(convId);
+    } finally {
+      setLoadingMessages(false);
+    }
+  };
+
+  const fetchMessages = async (convId: string) => {
+    const res = await fetch(`/api/proxy/chat/conversations/${convId}/messages`);
+    if (!res.ok) return;
+    const msgs: ChatMessage[] = await res.json();
+    setMessages(msgs);
+    if (userId) {
+      fetch(`/api/proxy/chat/conversations/${convId}/read?readerId=${userId}`, { method: "PATCH" }).catch(() => {});
+    }
+    setConversations(prev =>
+      prev.map(c => c.id === convId ? { ...c, unreadForStudent: 0 } : c)
+    );
+  };
+
+  const startPolling = (convId: string) => {
+    pollRef.current = setInterval(() => fetchMessages(convId), 3000);
+  };
+
+  const stopPolling = () => {
+    if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null; }
+  };
+
+  useEffect(() => () => stopPolling(), []);
+  useEffect(() => { messagesEndRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages]);
+
+  const handleSend = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!inputText.trim() || !userId || !activeConvId) return;
+    setSending(true);
+    const text = inputText.trim();
+    setInputText("");
+    try {
+      const res = await fetch(`/api/proxy/chat/conversations/${activeConvId}/messages`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          senderId: userId,
+          senderName: userName,
+          senderRole: "MARKETING",
+          senderAvatarUrl: "",
+          content: text,
+        }),
+      });
+      if (!res.ok) { setInputText(text); return; }
+      const newMsg: ChatMessage = await res.json();
+      setMessages(prev => [...prev, newMsg]);
+    } catch {
+      setInputText(text);
+    } finally {
+      setSending(false);
+    }
+  };
+
+  const formatTime = (iso: string | null | undefined) => {
+    if (!iso) return "";
+    const d = new Date(iso);
+    const diffDays = Math.floor((Date.now() - d.getTime()) / 86400000);
+    if (diffDays === 0) return d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+    if (diffDays === 1) return "Ayer";
+    if (diffDays < 7) return d.toLocaleDateString("es-ES", { weekday: "short" });
+    return d.toLocaleDateString("es-ES", { day: "numeric", month: "short" });
+  };
+
+  const supportConv = conversations.find(c => c.type === "SUPPORT");
+  const instructorConvs = conversations.filter(c => c.type === "INSTRUCTOR");
+  const activeConv = conversations.find(c => c.id === activeConvId) ?? null;
+  const chatOpen = mobileView === "chat";
 
   return (
-    <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
-      
-      {/* Header */}
-      <div className="text-center">
-        <div className="inline-flex h-16 w-16 items-center justify-center rounded-full bg-pink-500/10 mb-4">
-          <Headphones className="h-8 w-8 text-pink-500" />
+    <div className="h-[calc(100vh-10rem)] bg-background flex flex-col md:flex-row gap-6 animate-in fade-in duration-500 rounded-xl overflow-hidden">
+
+      {/* Sidebar */}
+      <Card className={cn(
+        "w-full md:w-80 lg:w-96 flex-col shrink-0 border-border bg-surface/50 overflow-hidden h-full",
+        chatOpen ? "hidden md:flex" : "flex"
+      )}>
+        <div className="p-4 border-b border-border">
+          <h2 className="text-xl font-bold tracking-tight">Comunicaciones</h2>
+          <p className="text-xs text-muted mt-1">Soporte e instructores de cursos.</p>
         </div>
-        <h1 className="text-3xl font-bold tracking-tight mb-2">Centro de Soporte</h1>
-        <p className="text-muted">¿Necesitas ayuda? Encuentra respuestas o contacta con nuestro equipo.</p>
-      </div>
 
-      {/* Search */}
-      <Card className="bg-surface/60 border-border">
-        <CardContent className="p-6">
-          <div className="relative">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted" />
-            <Input
-              placeholder="Buscar en preguntas frecuentes..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-12 bg-surface-secondary/50 border-border"
-            />
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Contact Options */}
-      <div className="grid gap-4 sm:grid-cols-3">
-        <Card className="bg-surface/40 border-border hover:border-pink-500/50 transition-colors">
-          <CardContent className="p-6 text-center">
-            <MessageCircle className="h-8 w-8 text-pink-500 mx-auto mb-3" />
-            <h3 className="font-semibold mb-2">Chat en Vivo</h3>
-            <p className="text-sm text-muted mb-4">Respuesta inmediata en horario de oficina</p>
-            <Button className="bg-pink-500 hover:bg-pink-600 text-white w-full">
-              Iniciar Chat
-            </Button>
-          </CardContent>
-        </Card>
-
-        <Card className="bg-surface/40 border-border hover:border-pink-500/50 transition-colors">
-          <CardContent className="p-6 text-center">
-            <Mail className="h-8 w-8 text-blue-500 mx-auto mb-3" />
-            <h3 className="font-semibold mb-2">Email</h3>
-            <p className="text-sm text-muted mb-4">Respuesta en 24-48 horas</p>
-            <Button variant="outline" className="w-full border-border">
-              soporte@prevenciontech.com
-            </Button>
-          </CardContent>
-        </Card>
-
-        <Card className="bg-surface/40 border-border hover:border-pink-500/50 transition-colors">
-          <CardContent className="p-6 text-center">
-            <Phone className="h-8 w-8 text-green-500 mx-auto mb-3" />
-            <h3 className="font-semibold mb-2">Teléfono</h3>
-            <p className="text-sm text-muted mb-4">Lun-Vie 9AM-6PM</p>
-            <Button variant="outline" className="w-full border-border">
-              +51 1 234 5678
-            </Button>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* FAQs */}
-      <Card className="bg-surface/60 border-border">
-        <CardContent className="p-6">
-          <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
-            <HelpCircle className="h-5 w-5 text-pink-500" />
-            Preguntas Frecuentes
-          </h2>
-          <div className="space-y-4">
-            {filteredFaqs.length > 0 ? (
-              filteredFaqs.map((faq, index) => (
-                <div key={index} className="p-4 rounded-lg bg-surface-secondary/30 border border-border">
-                  <h3 className="font-semibold mb-2 flex items-center gap-2">
-                    <BookOpen className="h-4 w-4 text-pink-500" />
-                    {faq.question}
-                  </h3>
-                  <p className="text-sm text-muted">{faq.answer}</p>
-                </div>
-              ))
-            ) : (
-              <div className="text-center py-8 text-muted">
-                <HelpCircle className="h-12 w-12 mx-auto mb-3 opacity-50" />
-                <p>No se encontraron resultados para "{searchTerm}"</p>
+        <div className="flex-1 overflow-y-auto p-2 space-y-1">
+          {loadingConvs ? (
+            <div className="flex items-center justify-center h-24 text-muted">
+              <Loader2 className="h-5 w-5 animate-spin mr-2" /> Cargando...
+            </div>
+          ) : (
+            <>
+              {/* IS-SUPPORT */}
+              <div className="px-2 pt-2 pb-1">
+                <p className="text-[10px] font-semibold text-muted uppercase tracking-wider">Soporte</p>
               </div>
-            )}
-          </div>
-        </CardContent>
+              <button
+                onClick={() => openConversation(supportConv ?? null, true)}
+                className={cn(
+                  "w-full text-left p-3 flex gap-3 rounded-lg transition-colors border",
+                  activeConvId === (supportConv?.id ?? null) && chatOpen
+                    ? "bg-primary/10 border-primary/30"
+                    : "bg-transparent border-transparent hover:bg-surface-secondary"
+                )}
+              >
+                <div className="relative shrink-0">
+                  <div className="h-10 w-10 flex items-center justify-center rounded-full bg-primary text-black">
+                    <Headphones className="h-5 w-5" />
+                  </div>
+                  <span className="absolute bottom-0 right-0 w-3 h-3 bg-success border-2 border-surface rounded-full" />
+                </div>
+                <div className="flex-1 min-w-0 text-sm">
+                  <div className="flex items-center justify-between gap-1">
+                    <p className="font-bold text-primary truncate">Soporte Técnico IS</p>
+                    {supportConv?.lastMessageAt && (
+                      <span className="text-[10px] text-muted shrink-0">{formatTime(supportConv.lastMessageAt)}</span>
+                    )}
+                  </div>
+                  <p className="text-xs text-muted truncate">
+                    {supportConv?.lastMessagePreview ?? "¿En qué podemos ayudarte?"}
+                  </p>
+                </div>
+                {(supportConv?.unreadForStudent ?? 0) > 0 && (
+                  <Badge className="h-5 px-1.5 text-[9px] shrink-0 self-center">{supportConv!.unreadForStudent}</Badge>
+                )}
+              </button>
+
+              {/* Instructor conversations */}
+              {instructorConvs.length > 0 && (
+                <>
+                  <div className="px-2 pt-3 pb-1">
+                    <p className="text-[10px] font-semibold text-muted uppercase tracking-wider">Instructores</p>
+                  </div>
+                  {instructorConvs.map(conv => (
+                    <button
+                      key={conv.id}
+                      onClick={() => openConversation(conv)}
+                      className={cn(
+                        "w-full text-left p-3 flex gap-3 rounded-lg transition-colors border",
+                        activeConvId === conv.id && chatOpen
+                          ? "bg-pink-500/10 border-pink-500/30"
+                          : "bg-transparent border-transparent hover:bg-surface-secondary"
+                      )}
+                    >
+                      <div className="relative shrink-0">
+                        <div className="h-10 w-10 flex items-center justify-center rounded-full bg-surface-secondary border border-border">
+                          <User className="h-5 w-5 text-muted" />
+                        </div>
+                      </div>
+                      <div className="flex-1 min-w-0 text-sm">
+                        <div className="flex items-center justify-between gap-1">
+                          <p className="font-semibold truncate">{conv.otherPartyName || "Instructor"}</p>
+                          {conv.lastMessageAt && (
+                            <span className="text-[10px] text-muted shrink-0">{formatTime(conv.lastMessageAt)}</span>
+                          )}
+                        </div>
+                        {conv.courseName && (
+                          <p className="text-[10px] text-pink-400 truncate flex items-center gap-1">
+                            <BookOpen className="h-2.5 w-2.5" /> {conv.courseName}
+                          </p>
+                        )}
+                        <p className="text-xs text-muted truncate mt-0.5">
+                          {conv.lastMessagePreview ?? "Notificación de cupón"}
+                        </p>
+                      </div>
+                      {conv.unreadForStudent > 0 && (
+                        <Badge className="h-5 px-1.5 text-[9px] shrink-0 self-center">{conv.unreadForStudent}</Badge>
+                      )}
+                    </button>
+                  ))}
+                </>
+              )}
+            </>
+          )}
+        </div>
       </Card>
 
-      {/* Contact Form */}
-      <Card className="bg-surface/60 border-border">
-        <CardContent className="p-6">
-          <h2 className="text-xl font-semibold mb-4">Enviar Consulta</h2>
-          <form className="space-y-4">
-            <div className="space-y-2">
-              <label className="text-sm font-semibold">Asunto</label>
-              <select
-                value={contactForm.subject}
-                onChange={(e) => setContactForm({ ...contactForm, subject: e.target.value })}
-                className="flex h-10 w-full rounded-md border border-border bg-surface-secondary px-3 py-2 text-sm"
-              >
-                <option value="">Selecciona un asunto...</option>
-                <option value="promociones">Consultas sobre Promociones</option>
-                <option value="anuncios">Consultas sobre Anuncios</option>
-                <option value="tecnico">Soporte Técnico</option>
-                <option value="otro">Otro</option>
-              </select>
-            </div>
-            <div className="space-y-2">
-              <label className="text-sm font-semibold">Mensaje</label>
-              <Textarea
-                value={contactForm.message}
-                onChange={(e) => setContactForm({ ...contactForm, message: e.target.value })}
-                placeholder="Describe tu consulta..."
-                className="min-h-[120px] bg-surface-secondary/50 border-border"
-              />
-            </div>
-            <div className="flex justify-end">
-              <Button type="submit" className="bg-pink-500 hover:bg-pink-600 text-white">
-                <Send className="h-4 w-4 mr-2" />
-                Enviar Consulta
+      {/* Chat Area */}
+      <Card className={cn(
+        "flex-1 flex-col border-border bg-surface/50 overflow-hidden h-[calc(100vh-10rem)] md:h-full",
+        !chatOpen ? "hidden md:flex" : "flex"
+      )}>
+        {activeConv ? (
+          <>
+            {/* Header */}
+            <div className="h-16 shrink-0 border-b border-border flex items-center justify-between px-4 md:px-6 bg-surface-secondary/20">
+              <div className="flex items-center gap-2 md:gap-3">
+                <Button
+                  variant="ghost" size="icon"
+                  className="md:hidden shrink-0 h-8 w-8 text-muted hover:text-foreground"
+                  onClick={() => { setMobileView("list"); stopPolling(); }}
+                >
+                  <ChevronLeft className="h-5 w-5" />
+                </Button>
+                <div className={cn(
+                  "h-10 w-10 flex items-center justify-center rounded-full shrink-0",
+                  activeConv.type === "SUPPORT" ? "bg-primary text-black" : "bg-surface-secondary border border-border"
+                )}>
+                  {activeConv.type === "SUPPORT"
+                    ? <Headphones className="h-5 w-5" />
+                    : <User className="h-5 w-5 text-muted" />
+                  }
+                </div>
+                <div>
+                  <h3 className={cn(
+                    "font-bold text-sm",
+                    activeConv.type === "SUPPORT" ? "text-primary" : "text-foreground"
+                  )}>
+                    {activeConv.type === "SUPPORT" ? "Soporte Técnico IS" : (activeConv.otherPartyName || "Instructor")}
+                  </h3>
+                  <p className="text-xs text-muted">
+                    {activeConv.type === "SUPPORT" ? "Equipo de Soporte" : activeConv.courseName ?? activeConv.otherPartyRole}
+                  </p>
+                </div>
+              </div>
+              <Button variant="ghost" size="icon" className="text-muted hover:text-foreground">
+                <MoreVertical className="h-5 w-5" />
               </Button>
             </div>
-          </form>
-        </CardContent>
+
+            {/* Messages */}
+            <div className="flex-1 overflow-y-auto p-6 space-y-4 flex flex-col">
+              {loadingMessages ? (
+                <div className="flex items-center justify-center h-full text-muted">
+                  <Loader2 className="h-5 w-5 animate-spin mr-2" /> Cargando mensajes...
+                </div>
+              ) : messages.length === 0 ? (
+                <div className="flex flex-col items-center justify-center h-full text-muted gap-2">
+                  <MessageSquare className="h-10 w-10 text-border" />
+                  <p className="text-sm">No hay mensajes aún</p>
+                </div>
+              ) : (
+                messages.map((msg, idx) => {
+                  const isMe = msg.senderId === userId;
+                  return (
+                    <div key={idx} className={cn("flex max-w-[80%] flex-col", isMe ? "self-end items-end" : "self-start items-start")}>
+                      <div className={cn(
+                        "p-3 rounded-2xl text-sm shadow-sm",
+                        isMe
+                          ? "bg-pink-500 text-white rounded-tr-none"
+                          : "bg-surface-secondary border border-border rounded-tl-none"
+                      )}>
+                        {msg.content}
+                      </div>
+                      <span className="text-[10px] text-muted mt-1 px-1">
+                        {formatTime(msg.createdAt)} {isMe && "✓✓"}
+                      </span>
+                    </div>
+                  );
+                })
+              )}
+              <div ref={messagesEndRef} />
+            </div>
+
+            {/* Input */}
+            <div className="p-4 border-t border-border bg-surface-secondary/10">
+              <form onSubmit={handleSend} className="flex gap-2">
+                <Input
+                  placeholder="Escribe un mensaje..."
+                  className="flex-1 bg-surface border-border"
+                  value={inputText}
+                  onChange={e => setInputText(e.target.value)}
+                />
+                <Button type="submit" size="icon" className="shrink-0" disabled={!inputText.trim() || sending}>
+                  {sending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+                </Button>
+              </form>
+            </div>
+          </>
+        ) : (
+          <div className="flex flex-col items-center justify-center h-full text-muted gap-3">
+            <MessageSquare className="h-12 w-12 text-border" />
+            <p className="text-sm">Selecciona una conversación</p>
+          </div>
+        )}
       </Card>
     </div>
   );

@@ -3,6 +3,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import Link from "next/link";
 import {
   TrendingUp,
   TrendingDown,
@@ -68,14 +69,12 @@ export default function MarketingDashboardPage() {
           <p className="text-muted">Métricas, promociones y rendimiento de campañas.</p>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" className="border-border">
-            <TrendingUp className="h-4 w-4 mr-2" />
-            Ver Reportes
-          </Button>
-          <Button className="bg-pink-500 hover:bg-pink-600 text-white">
-            <Megaphone className="h-4 w-4 mr-2" />
-            Nueva Campaña
-          </Button>
+          <Link href="/marketing/courses">
+            <Button className="bg-pink-500 hover:bg-pink-600 text-white">
+              <Tag className="h-4 w-4 mr-2" />
+              Crear Cupón
+            </Button>
+          </Link>
         </div>
       </div>
 

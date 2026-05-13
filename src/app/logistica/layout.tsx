@@ -3,9 +3,20 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Truck, FileText, BarChart3, LogOut, Archive } from "lucide-react";
+import { useSession, signOut } from "next-auth/react";
 
 export default function LogisticaLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
+  const { data: session } = useSession();
+
+  const handleLogout = () => {
+    const issuer = process.env.NEXT_PUBLIC_KEYCLOAK_ISSUER;
+    const clientId = process.env.NEXT_PUBLIC_KEYCLOAK_CLIENT_ID;
+    const idToken = session?.idToken;
+    let logoutUrl = `${issuer}/protocol/openid-connect/logout?post_logout_redirect_uri=${encodeURIComponent(window.location.origin + "/login")}&client_id=${clientId}`;
+    if (idToken) logoutUrl += `&id_token_hint=${idToken}`;
+    signOut({ redirect: false }).then(() => { window.location.href = logoutUrl; });
+  };
 
   return (
     <div className="flex min-h-screen bg-slate-950">
@@ -32,9 +43,9 @@ export default function LogisticaLayout({ children }: { children: React.ReactNod
         </div>
 
         <div className="p-4 border-t border-slate-800">
-          <Link href="/select-role" className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium text-slate-400 hover:bg-slate-800 hover:text-slate-200 transition-colors w-full">
-            <LogOut className="h-4 w-4" /> Cambiar Rol
-          </Link>
+          <button onClick={handleLogout} className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium text-slate-400 hover:bg-slate-800 hover:text-slate-200 transition-colors w-full">
+            <LogOut className="h-4 w-4" /> Cerrar Sesión
+          </button>
         </div>
       </aside>
 

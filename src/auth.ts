@@ -118,9 +118,15 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
                     }
                 }
 
+                const matchRole = (r: string) => roles.includes(r) || roles.includes(`ROLE_${r}`);
                 let primaryRole = "ROLE_ALUMNO";
-                if (roles.includes("ADMINISTRADOR") || roles.includes("ROLE_ADMINISTRADOR")) primaryRole = "ROLE_ADMINISTRADOR";
-                else if (roles.includes("INSTRUCTOR") || roles.includes("ROLE_INSTRUCTOR")) primaryRole = "ROLE_INSTRUCTOR";
+                if      (matchRole("ADMINISTRADOR"))    primaryRole = "ROLE_ADMINISTRADOR";
+                else if (matchRole("GERENCIA_GENERAL")) primaryRole = "ROLE_GERENCIA_GENERAL";
+                else if (matchRole("INSTRUCTOR"))       primaryRole = "ROLE_INSTRUCTOR";
+                else if (matchRole("MARKETING"))        primaryRole = "ROLE_MARKETING";
+                else if (matchRole("JEFE_SEGURIDAD"))   primaryRole = "ROLE_JEFE_SEGURIDAD";
+                else if (matchRole("LOGISTICA_ALMACEN")) primaryRole = "ROLE_LOGISTICA_ALMACEN";
+                else if (matchRole("TRABAJADOR"))       primaryRole = "ROLE_TRABAJADOR";
 
                 let dbId = token.dbId;
                 let isNewUser = false;
@@ -239,14 +245,22 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
 
             if (Date.now() < (token.expiresAt as number)) return token;
 
-            // Refresh token logic
+            // Refresh token logic — use the client that issued the original token
             try {
+                const isOAuth = token.provider === "keycloak";
+                const refreshClientId = isOAuth
+                    ? process.env.KEYCLOAK_CLIENT_ID!
+                    : process.env.KEYCLOAK_CLIENT_ID_MANUAL!;
+                const refreshClientSecret = isOAuth
+                    ? process.env.KEYCLOAK_CLIENT_SECRET!
+                    : process.env.KEYCLOAK_CLIENT_SECRET_MANUAL!;
+
                 const response = await fetch(`${process.env.KEYCLOAK_ISSUER}/protocol/openid-connect/token`, {
                     method: "POST",
                     headers: { "Content-Type": "application/x-www-form-urlencoded" },
                     body: new URLSearchParams({
-                        client_id: process.env.KEYCLOAK_CLIENT_ID_MANUAL!,
-                        client_secret: process.env.KEYCLOAK_CLIENT_SECRET_MANUAL!,
+                        client_id: refreshClientId,
+                        client_secret: refreshClientSecret,
                         grant_type: "refresh_token",
                         refresh_token: token.refreshToken as string,
                     }),

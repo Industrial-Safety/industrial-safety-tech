@@ -21,6 +21,8 @@ import {
 import { Avatar } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import Navbar from "@/components/layout/navbar";
+import { useSession, signOut } from "next-auth/react";
+import { useProfileAvatar } from "@/hooks/use-profile-avatar";
 
 const jefeNavItems = [
   { href: "/jefe", label: "Dashboard General", icon: LayoutDashboard },
@@ -35,6 +37,20 @@ export default function JefeLayout({ children }: { children: React.ReactNode }) 
   const [collapsed, setCollapsed] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const pathname = usePathname();
+  const { data: session } = useSession();
+  const displayName = session?.user?.name || "Jefe de Seguridad";
+  const fallbackAvatar = session?.user?.image || "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&h=150&fit=crop&crop=faces";
+  const { avatarUrl: storedAvatar } = useProfileAvatar(session?.user?.email ?? undefined);
+  const avatarUrl = storedAvatar || fallbackAvatar;
+
+  const handleLogout = () => {
+    const issuer = process.env.NEXT_PUBLIC_KEYCLOAK_ISSUER;
+    const clientId = process.env.NEXT_PUBLIC_KEYCLOAK_CLIENT_ID;
+    const idToken = session?.idToken;
+    let logoutUrl = `${issuer}/protocol/openid-connect/logout?post_logout_redirect_uri=${encodeURIComponent(window.location.origin + "/login")}&client_id=${clientId}`;
+    if (idToken) logoutUrl += `&id_token_hint=${idToken}`;
+    signOut({ redirect: false }).then(() => { window.location.href = logoutUrl; });
+  };
 
   return (
     <div className="flex h-screen w-full bg-background overflow-hidden font-sans text-foreground">
@@ -78,14 +94,14 @@ export default function JefeLayout({ children }: { children: React.ReactNode }) 
           collapsed ? "px-2" : "px-4"
         )}>
            <Avatar
-            src="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&h=150&fit=crop&crop=faces"
-            alt="Jefe de Seguridad"
+            src={avatarUrl}
+            alt={displayName}
             size={collapsed ? "sm" : "xl"}
             className={cn("border-2 border-primary/20", collapsed ? "mb-0" : "mb-3")}
           />
           {!collapsed && (
             <div className="flex flex-col items-center animate-in fade-in duration-300">
-              <h3 className="font-semibold text-sm text-center line-clamp-1">Carlos Mendoza</h3>
+              <h3 className="font-semibold text-sm text-center line-clamp-1">{displayName}</h3>
               <Badge variant="outline" className="mt-1 text-[10px] text-amber-500 border-amber-500/30 bg-amber-500/10 flex gap-1 items-center">
                 <Shield className="h-3 w-3" /> Jefe de Seguridad
               </Badge>
@@ -121,20 +137,19 @@ export default function JefeLayout({ children }: { children: React.ReactNode }) 
           })}
         </nav>
 
-        {/* Logout - Separado visualmente */}
+        {/* Logout */}
         <div className="border-t border-slate-800 p-3">
-          <Link
-            href="/select-role"
-            onClick={() => setMobileMenuOpen(false)}
+          <button
+            onClick={() => { setMobileMenuOpen(false); handleLogout(); }}
             className={cn(
-              "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-slate-400 hover:text-danger hover:bg-danger/10 transition-colors",
+              "flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-slate-400 hover:text-danger hover:bg-danger/10 transition-colors",
               collapsed && "justify-center px-0"
             )}
             title={collapsed ? "Cerrar Sesión" : undefined}
           >
             <LogOut className={cn("shrink-0", collapsed ? "h-6 w-6" : "h-5 w-5")} />
             {!collapsed && <span>Cerrar Sesión</span>}
-          </Link>
+          </button>
         </div>
       </aside>
 

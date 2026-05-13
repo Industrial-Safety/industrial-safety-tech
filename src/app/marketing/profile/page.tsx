@@ -1,185 +1,184 @@
 "use client";
 
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Avatar } from "@/components/ui/avatar";
-import {
-  User,
-  Mail,
-  Phone,
-  Calendar,
-  MapPin,
-  Edit,
-  Save,
-  X,
-  Tag,
-  Activity,
-  Award
-} from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { ProfileSettings, UserProfileData } from "@/components/shared/profile-settings";
+import { useSession } from "next-auth/react";
+import { Loader2 } from "lucide-react";
+import { toast } from "sonner";
 
 export default function MarketingProfilePage() {
-  const [isEditing, setIsEditing] = useState(false);
-  const [formData, setFormData] = useState({
-    name: "Laura Martínez",
-    email: "laura.martinez@prevenciontech.com",
-    phone: "+51 987 654 321",
-    location: "Lima, Perú",
-    department: "Marketing Digital"
+  const { data: session } = useSession();
+
+  const [profileData, setProfileData] = useState<UserProfileData>({
+    id: session?.dbId?.toString() || "",
+    name: session?.user?.name || "Cargando...",
+    email: session?.user?.email || "",
+    phone: "Cargando...",
+    role: "Marketing",
+    department: "Cargando...",
+    avatarUrl: session?.user?.image || "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150&h=150&fit=crop&crop=faces"
   });
 
-  const stats = [
-    { label: "Campañas Creadas", value: "24", icon: Activity },
-    { label: "Conversiones", value: "1,594", icon: Award },
-    { label: "Ingresos Generados", value: "$45,280", icon: Tag }
-  ];
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!session?.dbId) return;
+    const fetchUserData = async () => {
+      try {
+        const res = await fetch(`/api/proxy/users/${session.dbId}`);
+        if (res.ok) {
+          const data = await res.json();
+          setProfileData({
+            id: data.id,
+            name: `${data.name} ${data.lastName}`.trim(),
+            email: data.email,
+            phone: data.cellphone || "",
+            role: "Marketing",
+            department: data.department || "Marketing Digital",
+            avatarUrl: data.urlPhoto || session?.user?.image || "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150&h=150&fit=crop&crop=faces"
+          });
+        } else {
+          setProfileData({
+            id: session.dbId?.toString() || "",
+            name: session.user?.name || "",
+            email: session.user?.email || "",
+            phone: "",
+            role: "Marketing",
+            department: "Marketing Digital",
+            avatarUrl: session.user?.image || "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150&h=150&fit=crop&crop=faces"
+          });
+        }
+      } catch (err) {
+        console.error("Error cargando perfil:", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchUserData();
+  }, [session?.dbId]);
+
+  const handleUpdateProfile = async (updatedFields: Partial<UserProfileData>) => {
+    if (!session?.dbId) return;
+    try {
+      const nameParts = (updatedFields.name ?? profileData.name).trim().split(" ");
+      const firstName = nameParts[0] || "";
+      const lastName = nameParts.slice(1).join(" ") || firstName;
+      const payload = {
+        name: firstName,
+        lastName,
+        cellphone: updatedFields.phone ?? profileData.phone ?? "",
+        role: "ROLE_MARKETING",
+        urlPhoto: profileData.avatarUrl ?? "",
+      };
+      const res = await fetch(`/api/proxy/users/admin/${session.dbId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      });
+      if (res.ok) {
+        const updated = await res.json();
+        setProfileData(prev => ({
+          ...prev,
+          name: `${updated.name ?? ""} ${updated.lastName ?? ""}`.trim(),
+          phone: updated.cellphone ?? prev.phone,
+        }));
+        toast.success("Perfil actualizado correctamente");
+      } else {
+        toast.error("Error al actualizar el perfil");
+      }
+    } catch {
+      toast.error("Error de conexión");
+    }
+  };
+
+  const handleUpdatePassword = async (currentPass: string, newPass: string) => {
+    if (!(session as any)?.keycloakId) return;
+    try {
+      const res = await fetch("/api/proxy/users/change-password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          userId: (session as any).keycloakId,
+          currentPassword: currentPass,
+          newPassword: newPass
+        })
+      });
+      if (res.ok) {
+        toast.success("Contraseña actualizada. Cerrando sesión por seguridad...");
+        setTimeout(() => {
+          const issuer = process.env.NEXT_PUBLIC_KEYCLOAK_ISSUER;
+          const clientId = process.env.NEXT_PUBLIC_KEYCLOAK_CLIENT_ID;
+          const postLogoutRedirectUri = encodeURIComponent(window.location.origin + "/login");
+          window.location.href = `${issuer}/protocol/openid-connect/logout?client_id=${clientId}&post_logout_redirect_uri=${postLogoutRedirectUri}`;
+        }, 1500);
+      } else {
+        const error = await res.json();
+        const message = res.status === 400
+          ? "La contraseña no cumple los requisitos (mínimo 8 caracteres, una mayúscula y un símbolo)."
+          : (error.message || "Error al actualizar la contraseña");
+        toast.error(message);
+      }
+    } catch {
+      toast.error("Error de conexión al cambiar contraseña");
+    }
+  };
+
+  const handleAvatarUpload = async (file: File): Promise<string | null> => {
+    if (!session?.dbId) return null;
+    try {
+      const presignRes = await fetch(
+        `/api/storage/upload-url?fileName=${encodeURIComponent("users/profile-photos/" + Date.now() + "-" + file.name)}&contentType=${encodeURIComponent(file.type)}`
+      );
+      if (!presignRes.ok) { toast.error("Error al obtener URL de subida"); return null; }
+      const { uploadUrl, fileUrl } = await presignRes.json();
+      const s3Res = await fetch(uploadUrl, { method: "PUT", headers: { "Content-Type": file.type }, body: file });
+      if (!s3Res.ok) { toast.error("Error al subir la imagen"); return null; }
+      const nameParts = profileData.name.trim().split(" ");
+      const updateRes = await fetch(`/api/proxy/users/admin/${session.dbId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: nameParts[0] || "",
+          lastName: nameParts.slice(1).join(" ") || "",
+          cellphone: profileData.phone,
+          role: "ROLE_MARKETING",
+          urlPhoto: fileUrl,
+        }),
+      });
+      if (updateRes.ok) {
+        setProfileData(prev => ({ ...prev, avatarUrl: fileUrl }));
+        try { localStorage.setItem("custom_avatar", fileUrl); } catch (_) {}
+        try { window.dispatchEvent(new CustomEvent("avatar-updated", { detail: { url: fileUrl } })); } catch (_) {}
+        toast.success("Foto de perfil actualizada");
+        return fileUrl;
+      }
+      toast.error("Error guardando la foto en el servidor");
+      return null;
+    } catch {
+      toast.error("Error crítico al subir la imagen");
+      return null;
+    }
+  };
 
   return (
-    <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
-      
-      {/* Header */}
+    <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500 pb-20 md:pb-0">
       <div>
-        <h1 className="text-3xl font-bold tracking-tight mb-2">Mi Perfil</h1>
-        <p className="text-muted">Gestiona tu información personal y configuración de cuenta.</p>
+        <h1 className="text-3xl font-bold tracking-tight mb-2">Configuración de Perfil</h1>
+        <p className="text-muted">Gestiona tu información personal como encargado de Marketing.</p>
       </div>
-
-      <div className="grid gap-6 lg:grid-cols-3">
-        
-        {/* Profile Card */}
-        <Card className="lg:col-span-1 bg-surface/60 border-border h-fit">
-          <CardContent className="p-6">
-            <div className="text-center">
-              <Avatar
-                src="https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=300&h=300&fit=crop&crop=faces"
-                alt="Laura Martínez"
-                size="xl"
-                className="mx-auto mb-4 border-4 border-pink-500/20"
-              />
-              <h2 className="text-xl font-bold">{formData.name}</h2>
-              <Badge className="mt-2 bg-pink-500/10 text-pink-500 border-pink-500/30">
-                <Tag className="h-3 w-3 mr-1" />
-                Encargado de Marketing
-              </Badge>
-              
-              <div className="mt-6 space-y-3 text-left">
-                <div className="flex items-center gap-3 text-sm">
-                  <Mail className="h-4 w-4 text-muted" />
-                  <span className="text-muted">{formData.email}</span>
-                </div>
-                <div className="flex items-center gap-3 text-sm">
-                  <Phone className="h-4 w-4 text-muted" />
-                  <span className="text-muted">{formData.phone}</span>
-                </div>
-                <div className="flex items-center gap-3 text-sm">
-                  <MapPin className="h-4 w-4 text-muted" />
-                  <span className="text-muted">{formData.location}</span>
-                </div>
-                <div className="flex items-center gap-3 text-sm">
-                  <Calendar className="h-4 w-4 text-muted" />
-                  <span className="text-muted">Desde Marzo 2024</span>
-                </div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Stats Cards */}
-        <Card className="lg:col-span-2 bg-surface/60 border-border">
-          <CardHeader>
-            <CardTitle>Rendimiento del Equipo</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid gap-4 sm:grid-cols-3">
-              {stats.map((stat, index) => (
-                <div key={index} className="p-4 rounded-lg bg-gradient-to-br from-pink-500/10 to-purple-500/10 border border-pink-500/20">
-                  <div className="flex items-center justify-between mb-2">
-                    <stat.icon className="h-5 w-5 text-pink-500" />
-                  </div>
-                  <p className="text-2xl font-bold">{stat.value}</p>
-                  <p className="text-xs text-muted">{stat.label}</p>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Edit Profile Form */}
-        <Card className="lg:col-span-3 bg-surface/60 border-border">
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <CardTitle>Información Personal</CardTitle>
-              {!isEditing ? (
-                <Button variant="outline" size="sm" onClick={() => setIsEditing(true)}>
-                  <Edit className="h-4 w-4 mr-2" />
-                  Editar
-                </Button>
-              ) : (
-                <div className="flex gap-2">
-                  <Button variant="outline" size="sm" onClick={() => setIsEditing(false)}>
-                    <X className="h-4 w-4 mr-2" />
-                    Cancelar
-                  </Button>
-                  <Button size="sm" className="bg-pink-500 hover:bg-pink-600 text-white">
-                    <Save className="h-4 w-4 mr-2" />
-                    Guardar
-                  </Button>
-                </div>
-              )}
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div className="space-y-2">
-                <label className="text-sm font-semibold">Nombre Completo</label>
-                <Input
-                  value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  disabled={!isEditing}
-                  className="bg-surface-secondary/50 border-border disabled:opacity-50"
-                />
-              </div>
-              <div className="space-y-2">
-                <label className="text-sm font-semibold">Email</label>
-                <Input
-                  value={formData.email}
-                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                  disabled={!isEditing}
-                  className="bg-surface-secondary/50 border-border disabled:opacity-50"
-                />
-              </div>
-              <div className="space-y-2">
-                <label className="text-sm font-semibold">Teléfono</label>
-                <Input
-                  value={formData.phone}
-                  onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                  disabled={!isEditing}
-                  className="bg-surface-secondary/50 border-border disabled:opacity-50"
-                />
-              </div>
-              <div className="space-y-2">
-                <label className="text-sm font-semibold">Ubicación</label>
-                <Input
-                  value={formData.location}
-                  onChange={(e) => setFormData({ ...formData, location: e.target.value })}
-                  disabled={!isEditing}
-                  className="bg-surface-secondary/50 border-border disabled:opacity-50"
-                />
-              </div>
-              <div className="space-y-2 sm:col-span-2">
-                <label className="text-sm font-semibold">Departamento</label>
-                <Input
-                  value={formData.department}
-                  onChange={(e) => setFormData({ ...formData, department: e.target.value })}
-                  disabled={!isEditing}
-                  className="bg-surface-secondary/50 border-border disabled:opacity-50"
-                />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+      {loading ? (
+        <div className="flex justify-center py-20">
+          <Loader2 className="animate-spin h-8 w-8 text-primary" />
+        </div>
+      ) : (
+        <ProfileSettings
+          key={profileData.id}
+          initialData={profileData}
+          onUpdateProfile={handleUpdateProfile}
+          onChangePassword={handleUpdatePassword}
+          onAvatarChange={handleAvatarUpload}
+        />
+      )}
     </div>
   );
 }

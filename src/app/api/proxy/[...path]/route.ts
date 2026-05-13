@@ -159,6 +159,9 @@ export async function PATCH(req: NextRequest, { params }: { params: { path: stri
             },
             body: JSON.stringify(body)
         })
+        if (response.status === 204) {
+            return new NextResponse(null, { status: 204 })
+        }
         const data = await safeJson(response)
         return NextResponse.json(data, { status: response.status })
     } catch (error) {

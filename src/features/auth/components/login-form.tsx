@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import { signIn } from "next-auth/react";
-import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
@@ -80,7 +79,7 @@ export default function LoginForm({ initialError }: { initialError?: string }) {
           <div className="w-full border-t border-slate-800"></div>
         </div>
         <div className="relative flex justify-center text-xs">
-          <span className="bg-background px-2 text-slate-400">O ingresa con red social</span>
+          <span className="bg-background px-2 text-slate-400">Regístrate o ingresa con red social</span>
         </div>
       </div>
 
@@ -117,12 +116,6 @@ export default function LoginForm({ initialError }: { initialError?: string }) {
         </Button>
       </div>
 
-      <p className="text-center text-sm text-slate-400 mt-2">
-        No tienes una cuenta?{" "}
-        <Link href="/register" className="text-amber-500 font-semibold hover:underline">
-          Registrate
-        </Link>
-      </p>
     </form>
   );
 }

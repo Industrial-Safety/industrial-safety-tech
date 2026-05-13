@@ -34,6 +34,8 @@ export default function StaffAndAccessPage() {
   const [editingStaff, setEditingStaff] = useState<any>(null)
   const [isEditModalOpen, setIsEditModalOpen] = useState(false)
   const [roleFilter, setRoleFilter] = useState('ALL')
+  const [nameFilter, setNameFilter] = useState('')
+  const [emailStatus, setEmailStatus] = useState<'idle' | 'checking' | 'taken' | 'available'>('idle')
   const [formData, setFormData] = useState({
     dni: '',
     name: '',
@@ -77,10 +79,34 @@ export default function StaffAndAccessPage() {
   const [currentPage, setCurrentPage] = useState(1)
   const itemsPerPage = 5
 
-  // Filtrar la lista
+  // Reset page when filters change
+  useEffect(() => { setCurrentPage(1) }, [roleFilter, nameFilter])
+
+  // Email availability check (debounced 600ms)
+  useEffect(() => {
+    if (!formData.email || !formData.email.includes('@')) {
+      setEmailStatus('idle')
+      return
+    }
+    setEmailStatus('checking')
+    const timer = setTimeout(async () => {
+      try {
+        const res = await fetch(`/api/proxy/users/by-email?email=${encodeURIComponent(formData.email)}`)
+        setEmailStatus(res.ok ? 'taken' : 'available')
+      } catch {
+        setEmailStatus('idle')
+      }
+    }, 600)
+    return () => clearTimeout(timer)
+  }, [formData.email])
+
+  // Filtrar la lista — siempre excluir ALUMNO
   const allFiltered = staffList.filter(s => {
-    if (roleFilter === 'ALL') return true
-    return s.role?.includes(roleFilter)
+    const role = s.role?.toUpperCase() || ''
+    if (role.includes('ALUMNO')) return false
+    if (roleFilter !== 'ALL' && !role.includes(roleFilter)) return false
+    if (nameFilter && !`${s.name ?? ''} ${s.lastName ?? ''}`.toLowerCase().includes(nameFilter.toLowerCase())) return false
+    return true
   })
 
   // Paginar la lista filtrada
@@ -390,7 +416,12 @@ export default function StaffAndAccessPage() {
                 )}
                 <div className="space-y-2">
                   <label className="text-sm font-medium text-foreground">Correo Electrónico</label>
-                  <Input name="email" type="email" value={formData.email} onChange={handleInputChange} placeholder="juan.perez@empresa.com" />
+                  <Input name="email" type="email" value={formData.email} onChange={handleInputChange} placeholder="juan.perez@empresa.com"
+                    className={emailStatus === 'taken' ? 'border-danger focus:border-danger' : emailStatus === 'available' ? 'border-success focus:border-success' : ''}
+                  />
+                  {emailStatus === 'checking' && <p className="text-xs text-muted">Verificando disponibilidad...</p>}
+                  {emailStatus === 'taken' && <p className="text-xs text-danger font-medium">Este correo ya está registrado.</p>}
+                  {emailStatus === 'available' && <p className="text-xs text-success font-medium">Correo disponible.</p>}
                 </div>
                 <div className="space-y-2">
                   <label className="text-sm font-medium text-foreground">Teléfono</label>
@@ -431,7 +462,12 @@ export default function StaffAndAccessPage() {
                 </select>
                 <div className="relative w-full md:w-64">
                   <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted" />
-                  <Input placeholder="Filtrar por nombre..." className="pl-9 bg-surface-secondary/50 border-transparent focus:border-primary w-full" />
+                  <Input
+                    placeholder="Filtrar por nombre..."
+                    className="pl-9 bg-surface-secondary/50 border-transparent focus:border-primary w-full"
+                    value={nameFilter}
+                    onChange={(e) => setNameFilter(e.target.value)}
+                  />
                 </div>
               </div>
             </CardHeader>

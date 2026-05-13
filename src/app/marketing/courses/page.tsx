@@ -1,22 +1,23 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useSession } from "next-auth/react";
+import { cn } from "@/lib/utils";
 import {
-  BookOpen, Percent, Tag, Clock, Users, Star, Plus, Settings,
-  Copy, CheckCircle, X, Loader2, Trash2, ToggleLeft, ToggleRight
+  BookOpen, Percent, Tag, Plus,
+  Copy, CheckCircle, X, Loader2, Trash2, ToggleLeft, ToggleRight, Search, Lock
 } from "lucide-react";
 
 interface Course {
   id: string;
+  _id?: string;
   title: string;
-  price: number | null;
-  details?: { totalLecture: number };
-  teacher?: { name: string } | null;
+  details?: { precio: number; totalLecture: number };
+  teacher?: { id: string; name: string } | null;
   coverImageUrl: string | null;
 }
 
@@ -41,12 +42,19 @@ const STATUS_LABELS: Record<string, { label: string; className: string }> = {
   DISABLED: { label: "Desactivada", className: "bg-warning/10 text-warning border-warning/30" },
 };
 
+const PAGE_SIZE = 9;
+
 export default function MarketingCoursesPage() {
   const { data: session } = useSession();
+  const userId = (session as any)?.keycloakId as string | undefined;
+  const userName = session?.user?.name ?? "Marketing";
+
   const [courses, setCourses] = useState<Course[]>([]);
   const [coupons, setCoupons] = useState<Coupon[]>([]);
   const [loadingCourses, setLoadingCourses] = useState(true);
   const [loadingCoupons, setLoadingCoupons] = useState(true);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
   const [modalOpen, setModalOpen] = useState(false);
   const [selectedCourse, setSelectedCourse] = useState<Course | null>(null);
   const [created, setCreated] = useState(false);
@@ -61,16 +69,31 @@ export default function MarketingCoursesPage() {
     applyToAll: true,
   });
 
+  const sentinelRef = useRef<HTMLDivElement>(null);
+
   useEffect(() => { loadCourses(); loadCoupons(); }, []);
+  useEffect(() => { setVisibleCount(PAGE_SIZE); }, [searchQuery]);
+
+  useEffect(() => {
+    const sentinel = sentinelRef.current;
+    if (!sentinel) return;
+    const observer = new IntersectionObserver(
+      (entries) => { if (entries[0].isIntersecting) setVisibleCount(prev => prev + PAGE_SIZE); },
+      { rootMargin: "200px" }
+    );
+    observer.observe(sentinel);
+    return () => observer.disconnect();
+  }, [loadingCourses]);
 
   const loadCourses = async () => {
     setLoadingCourses(true);
     try {
       const res = await fetch("/api/proxy/course");
-      if (res.ok) setCourses(await res.json());
-    } finally {
-      setLoadingCourses(false);
-    }
+      if (res.ok) {
+        const raw: any[] = await res.json();
+        setCourses(raw.map(c => ({ ...c, id: c._id ?? c.id })));
+      }
+    } finally { setLoadingCourses(false); }
   };
 
   const loadCoupons = async () => {
@@ -78,10 +101,14 @@ export default function MarketingCoursesPage() {
     try {
       const res = await fetch("/api/proxy/orders/coupons");
       if (res.ok) setCoupons(await res.json());
-    } finally {
-      setLoadingCoupons(false);
-    }
+    } finally { setLoadingCoupons(false); }
   };
+
+  const activeCouponForCourse = (courseId: string) =>
+    coupons.find(c => c.courseId === courseId && c.status === "ACTIVE");
+
+  const hasGeneralCoupon = () =>
+    coupons.some(c => c.courseId === null && c.status === "ACTIVE");
 
   const openModal = (course: Course) => {
     setSelectedCourse(course);
@@ -90,32 +117,72 @@ export default function MarketingCoursesPage() {
     setForm({ type: "PERCENTAGE", value: 20, code: "", maxUses: 100, expiryDate: "", applyToAll: false });
   };
 
+  const sendInstructorNotification = useCallback(async (couponCode: string, course: Course, couponForm: typeof form) => {
+    if (!userId || !course.teacher?.id) return;
+    try {
+      const convRes = await fetch("/api/proxy/chat/conversations", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          type: "INSTRUCTOR",
+          studentId: userId,
+          studentName: userName,
+          studentAvatarUrl: "",
+          otherPartyId: course.teacher.id,
+          otherPartyName: course.teacher.name,
+          otherPartyRole: "Instructor",
+          otherPartyAvatarUrl: "",
+          courseId: course.id,
+          courseName: course.title,
+        }),
+      });
+      if (!convRes.ok) return;
+      const conv = await convRes.json();
+      const discountText = couponForm.type === "PERCENTAGE"
+        ? `${couponForm.value}% de descuento`
+        : `S/ ${couponForm.value} de descuento fijo`;
+      await fetch(`/api/proxy/chat/conversations/${conv.id}/messages`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          senderId: userId,
+          senderName: userName,
+          senderRole: "MARKETING",
+          senderAvatarUrl: "",
+          content: `Se ha creado el cupón ${couponCode} para tu curso "${course.title}" con ${discountText} y ${couponForm.maxUses} usos máximos.`,
+        }),
+      });
+    } catch (_) {}
+  }, [userId, userName]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!form.code.trim()) return;
     setSubmitting(true);
+    const snapshot = { ...form };
     try {
       const res = await fetch("/api/proxy/orders/coupons", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          code: form.code.toUpperCase(),
-          discountType: form.type,
-          value: form.value,
-          maxUses: form.maxUses,
-          courseId: form.applyToAll ? null : selectedCourse?.id ?? null,
-          expiryDate: form.expiryDate ? new Date(form.expiryDate).toISOString() : null,
+          code: snapshot.code.toUpperCase(),
+          discountType: snapshot.type,
+          value: snapshot.value,
+          maxUses: snapshot.maxUses,
+          courseId: snapshot.applyToAll ? null : selectedCourse?.id ?? null,
+          expiryDate: snapshot.expiryDate ? new Date(snapshot.expiryDate).toISOString() : null,
           createdByUserId: (session as any)?.dbId ?? null,
-          createdByName: session?.user?.name ?? null,
+          createdByName: userName,
         }),
       });
       if (res.ok) {
         setCreated(true);
         loadCoupons();
+        if (!snapshot.applyToAll && selectedCourse) {
+          sendInstructorNotification(snapshot.code.toUpperCase(), selectedCourse, snapshot);
+        }
       }
-    } finally {
-      setSubmitting(false);
-    }
+    } finally { setSubmitting(false); }
   };
 
   const handleCopy = (code: string) => {
@@ -132,114 +199,198 @@ export default function MarketingCoursesPage() {
     }
   };
 
+  const sendCouponDeletedNotification = useCallback(async (couponCode: string, course: Course) => {
+    if (!userId || !course.teacher?.id) return;
+    try {
+      const convRes = await fetch("/api/proxy/chat/conversations", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          type: "INSTRUCTOR",
+          studentId: userId,
+          studentName: userName,
+          studentAvatarUrl: "",
+          otherPartyId: course.teacher.id,
+          otherPartyName: course.teacher.name,
+          otherPartyRole: "Instructor",
+          otherPartyAvatarUrl: "",
+          courseId: course.id,
+          courseName: course.title,
+        }),
+      });
+      if (!convRes.ok) return;
+      const conv = await convRes.json();
+      await fetch(`/api/proxy/chat/conversations/${conv.id}/messages`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          senderId: userId,
+          senderName: userName,
+          senderRole: "MARKETING",
+          senderAvatarUrl: "",
+          content: `El cupón ${couponCode} asignado a tu curso "${course.title}" ha sido eliminado.`,
+        }),
+      });
+    } catch (_) {}
+  }, [userId, userName]);
+
   const handleDelete = async (id: number) => {
+    const coupon = coupons.find(c => c.id === id);
     const res = await fetch(`/api/proxy/orders/coupons/${id}`, { method: "DELETE" });
     if (res.ok || res.status === 204) {
       setCoupons(prev => prev.filter(c => c.id !== id));
+      if (coupon?.courseId) {
+        const course = courses.find(c => c.id === coupon.courseId);
+        if (course) sendCouponDeletedNotification(coupon.code, course);
+      }
     }
   };
 
-  const couponForCourse = (courseId: string) =>
-    coupons.find(c => (c.courseId === courseId || c.courseId === null) && c.status === "ACTIVE");
+  const filteredCourses = courses.filter(c => {
+    const q = searchQuery.toLowerCase();
+    return c.title.toLowerCase().includes(q) || (c.teacher?.name?.toLowerCase().includes(q) ?? false);
+  });
+
+  const visibleCourses = filteredCourses.slice(0, visibleCount);
+  const hasMore = visibleCount < filteredCourses.length;
 
   return (
     <div className="space-y-10 animate-in fade-in slide-in-from-bottom-4 duration-500">
 
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight mb-1">Gestión de Cursos y Cupones</h1>
-          <p className="text-muted">Crea descuentos para los cursos disponibles en el catálogo.</p>
-        </div>
+      <div>
+        <h1 className="text-3xl font-bold tracking-tight mb-1">Gestión de Cursos y Cupones</h1>
+        <p className="text-muted">Haz clic en un curso para crear un cupón de descuento.</p>
       </div>
 
       {/* Courses Grid */}
       <section>
-        <h2 className="text-lg font-bold mb-4">Cursos del Catálogo</h2>
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
+          <h2 className="text-lg font-bold">
+            Cursos del Catálogo
+            {!loadingCourses && <span className="ml-2 text-sm font-normal text-muted">({filteredCourses.length})</span>}
+          </h2>
+          <div className="relative w-full sm:w-64">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted" />
+            <Input
+              placeholder="Buscar curso o instructor..."
+              className="pl-9 bg-surface border-border h-9 text-sm"
+              value={searchQuery}
+              onChange={e => setSearchQuery(e.target.value)}
+            />
+          </div>
+        </div>
+
         {loadingCourses ? (
           <div className="flex justify-center py-12"><Loader2 className="h-6 w-6 animate-spin text-muted" /></div>
-        ) : courses.length === 0 ? (
-          <p className="text-muted text-sm">No hay cursos disponibles.</p>
+        ) : filteredCourses.length === 0 ? (
+          <p className="text-muted text-sm">{searchQuery ? "No se encontraron cursos." : "No hay cursos disponibles."}</p>
         ) : (
-          <div className="grid gap-5 md:grid-cols-2">
-            {courses.map(course => {
-              const activeCoupon = couponForCourse(course.id);
-              const price = course.price ?? 0;
-              return (
-                <Card key={course.id} className="bg-surface/60 border-border overflow-hidden hover:border-pink-500/50 transition-colors group">
-                  <CardContent className="p-0">
-                    <div className="flex flex-col sm:flex-row">
-                      <div className="sm:w-2/5 relative h-36 sm:h-auto overflow-hidden">
-                        {course.coverImageUrl ? (
-                          <img
-                            src={course.coverImageUrl}
-                            alt={course.title}
-                            className="h-full w-full object-cover group-hover:scale-105 transition-transform duration-500"
-                          />
-                        ) : (
-                          <div className="h-full w-full bg-surface-secondary flex items-center justify-center">
-                            <BookOpen className="h-10 w-10 text-muted" />
-                          </div>
-                        )}
-                        {activeCoupon && (
-                          <div className="absolute top-3 left-3">
-                            <Badge className="bg-pink-500 text-white text-xs">
-                              {activeCoupon.discountType === "PERCENTAGE"
-                                ? `${activeCoupon.value}% OFF`
-                                : `S/${activeCoupon.value} OFF`}
-                            </Badge>
-                          </div>
-                        )}
-                      </div>
+          <>
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {visibleCourses.map(course => {
+                const activeCoupon = activeCouponForCourse(course.id);
+                const price = course.details?.precio ?? 0;
+                const isClickable = price > 0 && !activeCoupon;
 
-                      <div className="sm:w-3/5 p-5">
-                        <h3 className="font-bold text-base mb-1 line-clamp-2">{course.title}</h3>
-                        {course.teacher && (
-                          <p className="text-xs text-muted mb-3">{course.teacher.name}</p>
-                        )}
-
-                        <div className="flex items-center justify-between mb-4">
-                          {price > 0 ? (
-                            <p className="text-xl font-bold text-pink-500">S/ {price.toFixed(2)}</p>
-                          ) : (
-                            <Badge variant="outline" className="text-success border-success/30">Gratis</Badge>
+                return (
+                  <Card
+                    key={course.id}
+                    onClick={() => isClickable && openModal(course)}
+                    className={cn(
+                      "bg-surface/60 border-border overflow-hidden transition-all group flex flex-col",
+                      isClickable
+                        ? "cursor-pointer hover:border-pink-500/60 hover:shadow-lg hover:shadow-pink-500/5"
+                        : "cursor-default opacity-90"
+                    )}
+                  >
+                    {/* Image */}
+                    <div className="relative h-40 overflow-hidden shrink-0">
+                      {course.coverImageUrl ? (
+                        <img
+                          src={course.coverImageUrl}
+                          alt={course.title}
+                          className={cn(
+                            "h-full w-full object-cover transition-transform duration-500",
+                            isClickable && "group-hover:scale-105"
                           )}
+                        />
+                      ) : (
+                        <div className="h-full w-full bg-surface-secondary flex items-center justify-center">
+                          <BookOpen className="h-10 w-10 text-muted" />
                         </div>
+                      )}
+
+                      {/* Overlay hint on hover */}
+                      {isClickable && (
+                        <div className="absolute inset-0 bg-pink-500/0 group-hover:bg-pink-500/10 transition-colors flex items-center justify-center">
+                          <div className="opacity-0 group-hover:opacity-100 transition-opacity bg-pink-500 text-white text-xs font-bold px-3 py-1.5 rounded-full flex items-center gap-1.5">
+                            <Plus className="h-3 w-3" /> Crear Cupón
+                          </div>
+                        </div>
+                      )}
+
+                      {activeCoupon && (
+                        <div className="absolute top-3 left-3">
+                          <Badge className="bg-pink-500 text-white text-xs">
+                            {activeCoupon.discountType === "PERCENTAGE" ? `${activeCoupon.value}% OFF` : `S/${activeCoupon.value} OFF`}
+                          </Badge>
+                        </div>
+                      )}
+
+                      {price === 0 && (
+                        <div className="absolute top-3 right-3">
+                          <Badge variant="outline" className="text-success border-success/40 bg-success/10 text-xs">Gratis</Badge>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Content */}
+                    <CardContent className="p-4 flex flex-col flex-1">
+                      <h3 className="font-bold text-sm mb-1 line-clamp-2 leading-snug">{course.title}</h3>
+                      {course.teacher && (
+                        <p className="text-xs text-muted mb-3">{course.teacher.name}</p>
+                      )}
+
+                      <div className="mt-auto">
+                        {price > 0 && (
+                          <p className="text-base font-bold text-pink-500 mb-2">S/ {price.toFixed(2)}</p>
+                        )}
 
                         {activeCoupon ? (
-                          <div className="space-y-2">
-                            <div className="p-2.5 bg-pink-500/10 rounded-lg border border-pink-500/20 flex items-center justify-between">
-                              <div>
-                                <p className="text-[10px] font-semibold text-pink-500">Cupón activo</p>
-                                <p className="text-sm font-mono font-bold">{activeCoupon.code}</p>
-                              </div>
-                              <Button variant="outline" size="sm" className="h-7" onClick={() => handleCopy(activeCoupon.code)}>
-                                {copied === activeCoupon.code ? <CheckCircle className="h-3.5 w-3.5 text-success" /> : <Copy className="h-3.5 w-3.5" />}
-                              </Button>
+                          <div className="p-2.5 bg-pink-500/10 rounded-lg border border-pink-500/20 flex items-center justify-between">
+                            <div>
+                              <p className="text-[10px] font-semibold text-pink-500 flex items-center gap-1">
+                                <Lock className="h-2.5 w-2.5" /> Cupón activo
+                              </p>
+                              <p className="text-sm font-mono font-bold">{activeCoupon.code}</p>
+                              <p className="text-[10px] text-muted">{activeCoupon.currentUses}/{activeCoupon.maxUses ?? "∞"} usos</p>
                             </div>
-                            <p className="text-xs text-muted">
-                              {activeCoupon.currentUses}/{activeCoupon.maxUses ?? "∞"} usos
-                              {activeCoupon.expiryDate && ` · Vence ${new Date(activeCoupon.expiryDate).toLocaleDateString("es-ES")}`}
-                            </p>
-                          </div>
-                        ) : (
-                          price > 0 && (
                             <Button
-                              className="w-full bg-pink-500 hover:bg-pink-600 text-white h-9 text-sm"
-                              onClick={() => openModal(course)}
+                              variant="outline" size="sm" className="h-7 shrink-0"
+                              onClick={e => { e.stopPropagation(); handleCopy(activeCoupon.code); }}
                             >
-                              <Plus className="h-4 w-4 mr-1.5" />
-                              Crear Cupón
+                              {copied === activeCoupon.code ? <CheckCircle className="h-3.5 w-3.5 text-success" /> : <Copy className="h-3.5 w-3.5" />}
                             </Button>
-                          )
+                          </div>
+                        ) : price === 0 ? (
+                          <p className="text-xs text-muted">Curso gratuito — no requiere cupón</p>
+                        ) : (
+                          <p className="text-xs text-muted/60 italic">Clic para crear cupón</p>
                         )}
                       </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              );
-            })}
-          </div>
+                    </CardContent>
+                  </Card>
+                );
+              })}
+            </div>
+
+            {hasMore && (
+              <div ref={sentinelRef} className="h-10 flex items-center justify-center mt-4">
+                <Loader2 className="h-4 w-4 animate-spin text-muted" />
+              </div>
+            )}
+          </>
         )}
       </section>
 
@@ -249,7 +400,12 @@ export default function MarketingCoursesPage() {
           <h2 className="text-lg font-bold">Todos los Cupones</h2>
           <Button
             className="bg-pink-500 hover:bg-pink-600 text-white h-8 text-xs"
-            onClick={() => { setSelectedCourse(null); setModalOpen(true); setCreated(false); setForm({ type: "PERCENTAGE", value: 20, code: "", maxUses: 100, expiryDate: "", applyToAll: true }); }}
+            onClick={() => {
+              setSelectedCourse(null);
+              setModalOpen(true);
+              setCreated(false);
+              setForm({ type: "PERCENTAGE", value: 20, code: "", maxUses: 100, expiryDate: "", applyToAll: true });
+            }}
           >
             <Plus className="h-3.5 w-3.5 mr-1" /> Cupón General
           </Button>
@@ -273,7 +429,10 @@ export default function MarketingCoursesPage() {
                       <div className="flex items-center gap-2 flex-wrap">
                         <span className="font-mono font-bold text-sm">{c.code}</span>
                         <Badge variant="outline" className={`text-[9px] py-0 h-4 ${s.className}`}>{s.label}</Badge>
-                        {c.courseId === null && <Badge variant="outline" className="text-[9px] py-0 h-4 border-primary/20 text-primary">Todos los cursos</Badge>}
+                        {c.courseId === null
+                          ? <Badge variant="outline" className="text-[9px] py-0 h-4 border-primary/20 text-primary">Todos los cursos</Badge>
+                          : <Badge variant="outline" className="text-[9px] py-0 h-4 border-pink-500/20 text-pink-400">Curso específico</Badge>
+                        }
                       </div>
                       <p className="text-xs text-muted mt-0.5">
                         {c.discountType === "PERCENTAGE" ? `${c.value}%` : `S/ ${c.value}`} de descuento
@@ -323,11 +482,17 @@ export default function MarketingCoursesPage() {
 
             <div className="p-6">
               {created ? (
-                <div className="text-center py-8">
+                <div className="text-center py-6">
                   <div className="h-16 w-16 rounded-full bg-success/10 flex items-center justify-center mx-auto mb-4 animate-in zoom-in">
                     <CheckCircle className="h-8 w-8 text-success" />
                   </div>
                   <h4 className="text-xl font-bold mb-2">¡Cupón creado!</h4>
+                  {selectedCourse?.teacher && (
+                    <p className="text-xs text-muted mb-4">
+                      Se notificó a <span className="text-foreground font-medium">{selectedCourse.teacher.name}</span> por chat.
+                      Puedes ver la conversación en <span className="text-pink-500 font-medium">Soporte</span>.
+                    </p>
+                  )}
                   <div className="p-4 bg-pink-500/10 rounded-lg border border-pink-500/20 mb-6">
                     <p className="text-xs text-pink-300 mb-2">Código de Promoción</p>
                     <div className="flex items-center justify-between gap-3">

@@ -3,10 +3,10 @@
 import React from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { ShieldCheck, Activity, Users, Video, Settings, FileText, Menu, X, LogOut, Megaphone } from "lucide-react"
+import { ShieldCheck, Activity, Users, Video, Settings, FileText, Menu, X, LogOut, Headphones } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
-import { signOut } from "next-auth/react"
+import { signOut, useSession } from "next-auth/react"
 
 const navigation = [
   { name: "Dashboard", href: "/admin", icon: Activity },
@@ -14,7 +14,7 @@ const navigation = [
   { name: "Hardware", href: "/admin/hardware", icon: Video },
   { name: "Integraciones", href: "/admin/settings", icon: Settings },
   { name: "Auditoría y Logs", href: "/admin/logs", icon: FileText },
-  { name: "Anuncios", href: "/admin/announcements", icon: Megaphone },
+  { name: "Soporte", href: "/admin/support", icon: Headphones },
 ]
 
 export default function AdminLayout({
@@ -23,14 +23,15 @@ export default function AdminLayout({
   children: React.ReactNode
 }) {
   const pathname = usePathname()
+  const { data: session } = useSession()
   const [sidebarOpen, setSidebarOpen] = React.useState(false)
 
   const handleLogout = () => {
     const issuer = process.env.NEXT_PUBLIC_KEYCLOAK_ISSUER;
     const clientId = process.env.NEXT_PUBLIC_KEYCLOAK_CLIENT_ID;
-    
-    const logoutUrl = `${issuer}/protocol/openid-connect/logout?post_logout_redirect_uri=${encodeURIComponent(window.location.origin + "/login")}&client_id=${clientId}`;
-    
+    const idToken = session?.idToken;
+    let logoutUrl = `${issuer}/protocol/openid-connect/logout?post_logout_redirect_uri=${encodeURIComponent(window.location.origin + "/login")}&client_id=${clientId}`;
+    if (idToken) logoutUrl += `&id_token_hint=${idToken}`;
     signOut({ redirect: false }).then(() => {
       window.location.href = logoutUrl;
     });

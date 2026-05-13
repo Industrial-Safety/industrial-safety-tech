@@ -16,7 +16,6 @@ import {
   LogOut,
   Briefcase,
   X,
-  Megaphone
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { Avatar } from "@/components/ui/avatar";
@@ -36,7 +35,6 @@ const instructorNavItems = [
   { href: "/instructor/courses", label: "Mis Cursos", icon: BookOpen },
   { href: "/instructor/analytics", label: "Analíticas por Alumno", icon: BarChart4 },
   { href: "/instructor/communications", label: "Comunicaciones", icon: MessageSquare },
-  { href: "/instructor/announcements", label: "Anuncios", icon: Megaphone },
   { href: "/instructor/profile", label: "Mi Perfil", icon: User },
 ];
 
@@ -107,8 +105,9 @@ export default function InstructorLayout({ children }: { children: React.ReactNo
   const handleLogout = () => {
     const issuer = process.env.NEXT_PUBLIC_KEYCLOAK_ISSUER;
     const clientId = process.env.NEXT_PUBLIC_KEYCLOAK_CLIENT_ID;
-    const logoutUrl = `${issuer}/protocol/openid-connect/logout?post_logout_redirect_uri=${encodeURIComponent(window.location.origin + "/login")}&client_id=${clientId}`;
-    
+    const idToken = session?.idToken;
+    let logoutUrl = `${issuer}/protocol/openid-connect/logout?post_logout_redirect_uri=${encodeURIComponent(window.location.origin + "/login")}&client_id=${clientId}`;
+    if (idToken) logoutUrl += `&id_token_hint=${idToken}`;
     signOut({ redirect: false }).then(() => {
       window.location.href = logoutUrl;
     });
