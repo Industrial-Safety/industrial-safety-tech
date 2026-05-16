@@ -50,6 +50,24 @@ export const getApprovedRequests = async () => {
   return res.json();
 };
 
+export const receiveInWarehouse = async ({ codigo, descripcion, stock, estado = "DISPONIBLE" }) => {
+  const res = await fetch("/api/proxy/purchase/inventory", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ codigo, descripcion, stock, estado }),
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    let detail = text;
+    try {
+      const json = JSON.parse(text);
+      detail = json.detail ?? json.message ?? json.error ?? text;
+    } catch {}
+    throw new Error(`[${res.status}] ${detail}`);
+  }
+  return res.json();
+};
+
 export const getEppDeliveriesByDni = async (workerDni) => {
   const res = await fetch(`/api/proxy/purchase/epp/deliveries?workerDni=${encodeURIComponent(workerDni)}`);
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -63,15 +81,23 @@ export const searchWorkerByDni = async (dni) => {
   return res.json();
 };
 
-export const deliverEpp = async ({ purchaseRequestId, workerDni, workerName, cantidad }) => {
+export const deliverEpp = async ({ inventoryItemId, workerDni, workerName, cantidad }) => {
+  const payload = { inventoryItemId, workerDni, workerName, cantidad };
+  console.log("[deliverEpp] payload →", JSON.stringify(payload));
   const res = await fetch("/api/proxy/purchase/epp/deliver", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ purchaseRequestId, workerDni, workerName, cantidad }),
+    body: JSON.stringify(payload),
   });
+  const text = await res.text();
+  console.log(`[deliverEpp] status=${res.status} body=`, text);
   if (!res.ok) {
-    const msg = await res.text();
-    throw new Error(msg || `HTTP ${res.status}`);
+    let detail = text;
+    try {
+      const json = JSON.parse(text);
+      detail = json.detail ?? json.message ?? json.error ?? text;
+    } catch {}
+    throw new Error(`[${res.status}] ${detail}`);
   }
-  return res.json();
+  return JSON.parse(text);
 };

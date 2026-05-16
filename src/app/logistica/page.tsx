@@ -152,13 +152,18 @@ const loadApprovedRequests = async () => {
 
     setEntregaLoading(true);
     setEntregaError("");
+    const workerDni = workerInfo.dni ?? entregaDni.trim();
+    const workerName = [workerInfo.name, workerInfo.lastName].filter(Boolean).join(" ") || workerDni;
+    console.log("[entrega] workerInfo →", workerInfo);
+    console.log("[entrega] workerDni=", workerDni, "workerName=", workerName);
+    console.log("[entrega] selectedItems →", selectedItems);
     try {
       for (const sel of selectedItems) {
         await deliverEpp({
-          purchaseRequestId: sel.itemId,
-          workerDni: workerInfo.dni,
-          workerName: `${workerInfo.name} ${workerInfo.lastName}`,
-          cantidad: sel.cantidad,
+          inventoryItemId: Number(sel.itemId),
+          workerDni,
+          workerName,
+          cantidad: Number(sel.cantidad),
         });
       }
       setShowEntregaModal(false);
@@ -547,11 +552,11 @@ const loadApprovedRequests = async () => {
                   )}
                 </label>
                 <div className="border border-slate-700 rounded-lg overflow-hidden max-h-52 overflow-y-auto divide-y divide-slate-800/60">
-                  {approvedRequests.length === 0 ? (
-                    <p className="text-xs text-slate-500 p-4 text-center">No hay solicitudes aprobadas en purchase.</p>
+                  {inventory.length === 0 ? (
+                    <p className="text-xs text-slate-500 p-4 text-center">No hay ítems en inventario.</p>
                   ) : (
-                    approvedRequests.map((item: any) => {
-                      const disponible = item.cantidad ?? 0;
+                    inventory.map((item: any) => {
+                      const disponible = item.stock ?? 0;
                       const hasStock = disponible > 0;
                       const sel = selectedItems.find(s => s.itemId === item.id);
                       return (
@@ -569,11 +574,11 @@ const loadApprovedRequests = async () => {
                           </div>
                           <div className="flex-1 min-w-0">
                             <p className={`text-sm font-medium truncate ${hasStock ? "text-slate-200" : "text-slate-500"}`}>
-                              {item.categoria}
+                              {item.descripcion}
                             </p>
                             <p className="text-xs text-slate-500">
-                              {item.codigoSolicitud} · Disponible: <span className={hasStock ? "text-emerald-400" : "text-rose-400"}>{disponible}</span> uds.
-                              {!hasStock && " · Sin unidades disponibles"}
+                              {item.codigo} · Stock: <span className={hasStock ? "text-emerald-400" : "text-rose-400"}>{disponible}</span> uds.
+                              {!hasStock && " · Sin stock"}
                             </p>
                           </div>
                           {sel && (

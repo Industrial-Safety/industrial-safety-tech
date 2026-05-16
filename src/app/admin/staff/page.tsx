@@ -297,22 +297,22 @@ export default function StaffAndAccessPage() {
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <label className="text-sm font-medium">Nombres</label>
-                  <Input 
-                    value={editingStaff.name} 
+                  <Input
+                    value={editingStaff.name ?? ""}
                     onChange={(e) => setEditingStaff({...editingStaff, name: e.target.value})}
                   />
                 </div>
                 <div className="space-y-2">
                   <label className="text-sm font-medium">Apellidos</label>
-                  <Input 
-                    value={editingStaff.lastName} 
+                  <Input
+                    value={editingStaff.lastName ?? ""}
                     onChange={(e) => setEditingStaff({...editingStaff, lastName: e.target.value})}
                   />
                 </div>
                 <div className="space-y-2">
                   <label className="text-sm font-medium">DNI</label>
-                  <Input 
-                    value={editingStaff.dni} 
+                  <Input
+                    value={editingStaff.dni ?? ""}
                     onChange={(e) => setEditingStaff({...editingStaff, dni: e.target.value})}
                   />
                 </div>
@@ -326,8 +326,8 @@ export default function StaffAndAccessPage() {
               </div>
               <div className="space-y-2">
                 <label className="text-sm font-medium">Correo Electrónico</label>
-                <Input 
-                  value={editingStaff.email} 
+                <Input
+                  value={editingStaff.email ?? ""}
                   onChange={(e) => setEditingStaff({...editingStaff, email: e.target.value})}
                 />
               </div>

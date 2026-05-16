@@ -7,9 +7,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
   ClipboardList, Clock, CheckCircle, XCircle, Eye, X, Search,
-  Package, DollarSign,
+  Package, DollarSign, PackagePlus,
 } from "lucide-react";
-import { getRequests } from "@/services/requestService";
+import { getRequests, receiveInWarehouse } from "@/services/requestService";
 
 interface PurchaseRequest {
   id: number;
@@ -31,6 +31,8 @@ export default function AprobacionesPage() {
   const [filtro, setFiltro] = useState<Filtro>("TODOS");
   const [search, setSearch] = useState("");
   const [viewRequest, setViewRequest] = useState<PurchaseRequest | null>(null);
+  const [receivingId, setReceivingId] = useState<number | null>(null);
+  const [receivedIds, setReceivedIds] = useState<Set<number>>(new Set());
 
   useEffect(() => {
     getRequests()
@@ -47,6 +49,23 @@ export default function AprobacionesPage() {
       r.proveedor?.toLowerCase().includes(search.toLowerCase());
     return matchFiltro && matchSearch;
   });
+
+  const handleReceiveInWarehouse = async (req: PurchaseRequest) => {
+    setReceivingId(req.id);
+    try {
+      await receiveInWarehouse({
+        codigo: req.codigoSolicitud,
+        descripcion: req.categoria,
+        stock: req.cantidad,
+        estado: "DISPONIBLE",
+      });
+      setReceivedIds((prev) => new Set(prev).add(req.id));
+    } catch (e) {
+      alert("Error al registrar en almacén: " + (e as Error).message);
+    } finally {
+      setReceivingId(null);
+    }
+  };
 
   const count = (estado: string) =>
     requests.filter((r) => r.estado?.toUpperCase() === estado).length;
@@ -164,6 +183,22 @@ export default function AprobacionesPage() {
 
                   <div className="flex items-center gap-3">
                     {statusBadge(req.estado)}
+                    {req.estado?.toUpperCase() === "APROBADO" && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        disabled={receivingId === req.id || receivedIds.has(req.id)}
+                        title={receivedIds.has(req.id) ? "Ya registrado en almacén" : "Recibir en almacén"}
+                        className={receivedIds.has(req.id)
+                          ? "text-emerald-400 hover:text-emerald-300 hover:bg-slate-700"
+                          : "text-rose-400 hover:text-rose-300 hover:bg-slate-700"}
+                        onClick={() => handleReceiveInWarehouse(req)}
+                      >
+                        {receivedIds.has(req.id)
+                          ? <CheckCircle className="h-4 w-4" />
+                          : <PackagePlus className="h-4 w-4" />}
+                      </Button>
+                    )}
                     <Button
                       variant="ghost"
                       size="sm"
@@ -248,7 +283,23 @@ export default function AprobacionesPage() {
               </div>
             </div>
 
-            <div className="p-4 border-t border-slate-800 flex justify-end">
+            <div className="p-4 border-t border-slate-800 flex justify-between items-center">
+              <div>
+                {viewRequest.estado?.toUpperCase() === "APROBADO" && (
+                  <Button
+                    disabled={receivingId === viewRequest.id || receivedIds.has(viewRequest.id)}
+                    className="bg-emerald-700 hover:bg-emerald-600 text-white disabled:opacity-60"
+                    onClick={() => handleReceiveInWarehouse(viewRequest)}
+                  >
+                    <PackagePlus className="h-4 w-4 mr-2" />
+                    {receivedIds.has(viewRequest.id)
+                      ? "Registrado en Almacén"
+                      : receivingId === viewRequest.id
+                      ? "Registrando..."
+                      : "Recibir en Almacén"}
+                  </Button>
+                )}
+              </div>
               <Button variant="ghost" className="text-slate-400" onClick={() => setViewRequest(null)}>Cerrar</Button>
             </div>
           </div>
