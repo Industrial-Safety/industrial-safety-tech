@@ -1,206 +1,276 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Avatar } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Search, Send, Headphones, UserCircle, MoreVertical, Paperclip, ChevronLeft, MessageSquare } from "lucide-react";
+import { Search, Send, Headphones, UserCircle, MoreVertical, ChevronLeft, MessageSquare, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useSession } from "next-auth/react";
 
-// Mock Contacts Base
-const CONTACTS = [
-  {
-    id: "c-support",
-    name: "Soporte Técnico IS",
-    role: "Equipo de Soporte",
-    avatar: "",
-    isSupport: true,
-    lastMsg: "Te hemos asignado el curso de forma manual.",
-    time: "10:30 AM",
-    unread: 1,
-    online: true,
-    messages: [
-      { id: 1, sender: "me", text: "Hola, tengo un problema. El curso de EPP no marca mi progreso aunque ya vi el video 2 veces.", time: "10:15 AM" },
-      { id: 2, sender: "them", text: "Hola Alex. Gracias por comunicarte.", time: "10:25 AM" },
-      { id: 3, sender: "them", text: "Te hemos asignado el progreso del curso de forma manual y he reportado el bug a ingeniería. Ya puedes dar tu examen.", time: "10:30 AM" }
-    ]
-  },
-  {
-    id: "c-inst-roberto",
-    name: "Ing. Roberto Martínez",
-    role: "Instructor de EPP Avanzado",
-    avatar: "https://images.unsplash.com/photo-1560250097-0b93528c311a?w=150&h=150&fit=crop&crop=faces",
-    isSupport: false,
-    lastMsg: "Correcto, la mascarilla 3M serie 6000 también te sirve.",
-    time: "Ayer",
-    unread: 0,
-    online: false,
-    messages: [
-      { id: 1, sender: "me", text: "Profesor Roberto, una consulta respecto al módulo 2.", time: "09:00 AM" },
-      { id: 2, sender: "me", text: "¿Puedo usar la mascarilla 3M 6000 para químicos en lugar de la que sale en el video?", time: "09:02 AM" },
-      { id: 3, sender: "them", text: "Correcto, la mascarilla 3M serie 6000 también te sirve si le colocas los filtros 6003 (gases ácidos).", time: "05:00 PM" }
-    ]
-  },
-  {
-    id: "c-inst-elena",
-    name: "Dra. Elena Silva",
-    role: "Instructora de P. Auxilios",
-    avatar: "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=150&h=150&fit=crop&crop=faces",
-    isSupport: false,
-    lastMsg: "Recuerda repasar el RCP de cara al examen del viernes.",
-    time: "Lun",
-    unread: 0,
-    online: true,
-    messages: [
-      { id: 1, sender: "them", text: "Recuerda repasar el RCP de cara al examen del viernes.", time: "10:00 AM" }
-    ]
-  }
-];
+interface ChatMessage {
+  id: string;
+  conversationId: string;
+  senderId: string;
+  senderName: string;
+  senderRole: string;
+  content: string;
+  createdAt: string;
+  read: boolean;
+}
 
-export default function SupportChatPage() {
-  const [search, setSearch] = useState("");
-  const [activeChatId, setActiveChatId] = useState(CONTACTS[0].id);
-  const [mobileView, setMobileView] = useState<"list" | "chat">("list");
+interface ConversationResponse {
+  id: string;
+  type: "INSTRUCTOR" | "SUPPORT";
+  studentId: string;
+  otherPartyId: string;
+  otherPartyName: string;
+  otherPartyRole: string;
+  courseId?: string;
+  courseName?: string;
+  lastMessageAt?: string;
+  lastMessagePreview?: string;
+  unreadForStudent: number;
+}
+
+interface ContactItem {
+  id: string;
+  name: string;
+  role: string;
+  type: "INSTRUCTOR" | "SUPPORT";
+  courseId?: string;
+  courseName?: string;
+  conversationId: string | null;
+  lastMsg: string;
+  lastMessageAt: string | null;
+  unread: number;
+}
+
+const SUPPORT_PARTY_ID = "IS-SUPPORT";
+
+export default function TrabajadorSupportPage() {
+  const { data: session } = useSession();
+  const userId = session?.keycloakId as string | undefined;
+  const userName = session?.user?.name ?? "Trabajador";
+
+  const [contacts, setContacts] = useState<ContactItem[]>([]);
+  const [loadingContacts, setLoadingContacts] = useState(true);
+  const [activeContactId, setActiveContactId] = useState<string | null>(null);
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [loadingMessages, setLoadingMessages] = useState(false);
   const [inputText, setInputText] = useState("");
-  
-  const [contacts, setContacts] = useState(CONTACTS);
+  const [sending, setSending] = useState(false);
+  const [search, setSearch] = useState("");
+  const [mobileView, setMobileView] = useState<"list" | "chat">("list");
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  const activeContact = contacts.find(c => c.id === activeChatId);
+  useEffect(() => {
+    if (!userId) return;
+    loadContacts(userId);
+  }, [userId]);
 
-  const handleSendMessage = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!inputText.trim() || !activeContact) return;
+  const loadContacts = async (uid: string) => {
+    setLoadingContacts(true);
+    try {
+      const convRes = await fetch(`/api/proxy/chat/conversations/student/${uid}`);
+      const conversations: ConversationResponse[] = convRes.ok ? await convRes.json() : [];
 
-    // Simulate sending message locally
-    const newMessage = {
-      id: Date.now(),
-      sender: "me",
-      text: inputText,
-      time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-    };
+      const supportConv = conversations.find(c => c.type === "SUPPORT");
+      const supportContact: ContactItem = {
+        id: SUPPORT_PARTY_ID,
+        name: "Soporte Técnico IS",
+        role: "Equipo de Soporte",
+        type: "SUPPORT",
+        conversationId: supportConv?.id ?? null,
+        lastMsg: supportConv?.lastMessagePreview ?? "¿En qué podemos ayudarte?",
+        lastMessageAt: supportConv?.lastMessageAt ?? null,
+        unread: supportConv?.unreadForStudent ?? 0,
+      };
 
-    setContacts(contacts.map(c => {
-      if (c.id === activeChatId) {
-        return {
-          ...c,
-          messages: [...c.messages, newMessage],
-          lastMsg: inputText,
-          time: "Ahora"
-        };
-      }
-      return c;
-    }));
-    setInputText("");
+      setContacts([supportContact]);
+    } catch (e) {
+      console.error("Error cargando contactos:", e);
+    } finally {
+      setLoadingContacts(false);
+    }
   };
 
-  const filteredContacts = contacts.filter(c => c.name.toLowerCase().includes(search.toLowerCase()) || c.role.toLowerCase().includes(search.toLowerCase()));
+  const openChat = async (contact: ContactItem) => {
+    if (!userId) return;
+    stopPolling();
+    setActiveContactId(contact.id);
+    setMobileView("chat");
+    setMessages([]);
+    setLoadingMessages(true);
+    try {
+      let convId = contact.conversationId;
+      if (!convId) {
+        const body = {
+          type: contact.type,
+          studentId: userId,
+          studentName: userName,
+          studentAvatarUrl: "",
+          otherPartyId: contact.id,
+          otherPartyName: contact.name,
+          otherPartyRole: contact.role,
+          otherPartyAvatarUrl: "",
+          courseId: null,
+          courseName: null,
+        };
+        const res = await fetch("/api/proxy/chat/conversations", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(body),
+        });
+        if (!res.ok) return;
+        const conv: ConversationResponse = await res.json();
+        convId = conv.id;
+        setContacts(prev => prev.map(c => c.id === contact.id ? { ...c, conversationId: convId } : c));
+      }
+      await fetchMessages(convId, userId);
+      startPolling(convId, userId);
+    } catch (e) {
+      console.error("Error abriendo chat:", e);
+    } finally {
+      setLoadingMessages(false);
+    }
+  };
+
+  const fetchMessages = async (convId: string, readerId: string) => {
+    const res = await fetch(`/api/proxy/chat/conversations/${convId}/messages`);
+    if (!res.ok) return;
+    const msgs: ChatMessage[] = await res.json();
+    setMessages(msgs);
+    fetch(`/api/proxy/chat/conversations/${convId}/read?readerId=${readerId}`, { method: "PATCH" });
+    setContacts(prev => prev.map(c => c.conversationId === convId ? { ...c, unread: 0 } : c));
+  };
+
+  const startPolling = (convId: string, readerId: string) => {
+    pollRef.current = setInterval(() => fetchMessages(convId, readerId), 3000);
+  };
+  const stopPolling = () => { if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null; } };
+  useEffect(() => () => stopPolling(), []);
+  useEffect(() => { messagesEndRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages]);
+
+  const handleSendMessage = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const activeContact = contacts.find(c => c.id === activeContactId);
+    if (!inputText.trim() || !userId || !activeContact?.conversationId) return;
+    setSending(true);
+    const text = inputText.trim();
+    setInputText("");
+    try {
+      const res = await fetch(`/api/proxy/chat/conversations/${activeContact.conversationId}/messages`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          senderId: userId,
+          senderName: userName,
+          senderRole: "TRABAJADOR",
+          senderAvatarUrl: "",
+          content: text,
+        }),
+      });
+      if (!res.ok) { setInputText(text); return; }
+      const newMsg: ChatMessage = await res.json();
+      setMessages(prev => [...prev, newMsg]);
+      setContacts(prev => prev.map(c => c.id === activeContactId
+        ? { ...c, lastMsg: text, lastMessageAt: newMsg.createdAt } : c));
+    } catch (e) {
+      setInputText(text);
+    } finally {
+      setSending(false);
+    }
+  };
+
+  const activeContact = contacts.find(c => c.id === activeContactId) ?? null;
+  const filteredContacts = contacts.filter(c =>
+    c.name.toLowerCase().includes(search.toLowerCase()) || c.role.toLowerCase().includes(search.toLowerCase())
+  );
+
+  const formatTime = (iso: string | null) => {
+    if (!iso) return "";
+    const d = new Date(iso);
+    const diffDays = Math.floor((Date.now() - d.getTime()) / 86400000);
+    if (diffDays === 0) return d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+    if (diffDays === 1) return "Ayer";
+    if (diffDays < 7) return d.toLocaleDateString("es-ES", { weekday: "short" });
+    return d.toLocaleDateString("es-ES", { day: "numeric", month: "short" });
+  };
 
   return (
     <div className="h-[calc(100vh-10rem)] bg-background flex flex-col md:flex-row gap-6 animate-in fade-in duration-500 rounded-xl overflow-hidden">
-      
-      {/* Sidebar: Contacts List */}
+
       <Card className={cn(
         "w-full md:w-80 lg:w-96 flex-col shrink-0 border-border bg-surface/50 overflow-hidden h-full",
         mobileView === "chat" ? "hidden md:flex" : "flex"
       )}>
         <div className="p-4 border-b border-border space-y-4">
-          <h2 className="text-xl font-bold tracking-tight">Comunicaciones</h2>
+          <h2 className="text-xl font-bold tracking-tight">Soporte</h2>
           <div className="relative">
             <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted" />
-            <Input 
-              placeholder="Buscar chats..." 
-              className="pl-9 bg-surface-secondary/50 border-border"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-            />
+            <Input placeholder="Buscar..." className="pl-9 bg-surface-secondary/50 border-border"
+              value={search} onChange={e => setSearch(e.target.value)} />
           </div>
         </div>
-
         <div className="flex-1 overflow-y-auto p-2 space-y-1">
-          {filteredContacts.map(contact => (
-            <button
-              key={contact.id}
-              onClick={() => {
-                setActiveChatId(contact.id);
-                setMobileView("chat");
-              }}
-              className={cn(
-                "w-full text-left p-3 flex gap-3 rounded-lg transition-colors border",
-                activeChatId === contact.id 
-                  ? "bg-primary/10 border-primary/30" 
-                  : "bg-transparent border-transparent hover:bg-surface-secondary"
-              )}
-            >
-              <div className="relative shrink-0">
-                {contact.isSupport ? (
+          {loadingContacts ? (
+            <div className="flex items-center justify-center h-24 text-muted">
+              <Loader2 className="h-5 w-5 animate-spin mr-2" /> Cargando...
+            </div>
+          ) : (
+            filteredContacts.map(contact => (
+              <button key={contact.id} onClick={() => openChat(contact)}
+                className={cn(
+                  "w-full text-left p-3 flex gap-3 rounded-lg transition-colors border",
+                  activeContactId === contact.id ? "bg-primary/10 border-primary/30" : "bg-transparent border-transparent hover:bg-surface-secondary"
+                )}>
+                <div className="relative shrink-0">
                   <div className="h-10 w-10 flex items-center justify-center rounded-full bg-primary text-black">
                     <Headphones className="h-5 w-5" />
                   </div>
-                ) : (
-                  <Avatar src={contact.avatar} fallback={<UserCircle className="h-6 w-6" />} />
-                )}
-                {contact.online && (
-                  <span className="absolute bottom-0 right-0 w-3 h-3 bg-success border-2 border-surface rounded-full"></span>
-                )}
-              </div>
-              <div className="flex-1 min-w-0 overflow-hidden text-sm">
-                <div className="flex justify-between items-center mb-0.5">
-                  <span className={cn("font-bold truncate", contact.isSupport && "text-primary")}>{contact.name}</span>
-                  <span className="text-[10px] text-muted whitespace-nowrap">{contact.time}</span>
+                  <span className="absolute bottom-0 right-0 w-3 h-3 bg-success border-2 border-surface rounded-full" />
                 </div>
-                <div className="flex justify-between items-center gap-2">
-                  <p className="text-xs text-muted truncate">{contact.lastMsg}</p>
-                  {contact.unread > 0 && (
-                    <Badge variant="default" className="h-5 w-5 rounded-full p-0 flex items-center justify-center shrink-0 text-[10px]">
-                      {contact.unread}
-                    </Badge>
-                  )}
+                <div className="flex-1 min-w-0 overflow-hidden text-sm">
+                  <div className="flex justify-between items-center mb-0.5">
+                    <span className="font-bold truncate text-primary">{contact.name}</span>
+                    <span className="text-[10px] text-muted whitespace-nowrap">{formatTime(contact.lastMessageAt)}</span>
+                  </div>
+                  <div className="flex justify-between items-center gap-2">
+                    <p className="text-xs text-muted truncate">{contact.lastMsg}</p>
+                    {contact.unread > 0 && (
+                      <Badge variant="default" className="h-5 w-5 rounded-full p-0 flex items-center justify-center shrink-0 text-[10px]">
+                        {contact.unread}
+                      </Badge>
+                    )}
+                  </div>
                 </div>
-              </div>
-            </button>
-          ))}
-          {filteredContacts.length === 0 && (
-            <div className="p-4 text-center text-sm text-muted">No se encontraron chats</div>
+              </button>
+            ))
           )}
         </div>
       </Card>
 
-      {/* Main Chat Area */}
       <Card className={cn(
         "flex-1 flex-col border-border bg-surface/50 overflow-hidden h-[calc(100vh-10rem)] md:h-full",
         mobileView === "list" ? "hidden md:flex" : "flex"
       )}>
         {activeContact ? (
           <>
-            {/* Chat Header */}
             <div className="h-16 shrink-0 border-b border-border flex items-center justify-between px-4 md:px-6 bg-surface-secondary/20">
               <div className="flex items-center gap-2 md:gap-3">
-                <Button 
-                  variant="ghost" 
-                  size="icon" 
-                  className="md:hidden shrink-0 h-8 w-8 text-muted hover:text-foreground"
-                  onClick={() => setMobileView("list")}
-                >
+                <Button variant="ghost" size="icon" className="md:hidden shrink-0 h-8 w-8 text-muted hover:text-foreground"
+                  onClick={() => { setMobileView("list"); stopPolling(); }}>
                   <ChevronLeft className="h-5 w-5" />
                 </Button>
-                <div className="relative">
-                  {activeContact.isSupport ? (
-                    <div className="h-10 w-10 flex items-center justify-center rounded-full bg-primary text-black">
-                      <Headphones className="h-5 w-5" />
-                    </div>
-                  ) : (
-                    <Avatar src={activeContact.avatar} fallback={<UserCircle className="h-6 w-6" />} />
-                  )}
-                  {activeContact.online && (
-                    <span className="absolute bottom-0 right-0 w-3 h-3 bg-success border-2 border-surface rounded-full"></span>
-                  )}
+                <div className="h-10 w-10 flex items-center justify-center rounded-full bg-primary text-black">
+                  <Headphones className="h-5 w-5" />
                 </div>
                 <div>
-                  <h3 className={cn("font-bold text-sm", activeContact.isSupport && "text-primary")}>
-                    {activeContact.name}
-                  </h3>
+                  <h3 className="font-bold text-sm text-primary">{activeContact.name}</h3>
                   <p className="text-xs text-muted">{activeContact.role}</p>
                 </div>
               </div>
@@ -209,56 +279,53 @@ export default function SupportChatPage() {
               </Button>
             </div>
 
-            {/* Chat Messages */}
             <div className="flex-1 overflow-y-auto p-6 space-y-4 flex flex-col relative w-full">
-              {activeContact.messages.map((msg, idx) => {
-                const isMe = msg.sender === "me";
-                return (
-                  <div key={idx} className={cn("flex max-w-[80%] flex-col", isMe ? "self-end items-end" : "self-start items-start")}>
-                    <div 
-                      className={cn(
-                        "p-3 rounded-2xl text-sm shadow-sm",
-                        isMe 
-                          ? "bg-primary text-primary-foreground rounded-tr-none" 
-                          : "bg-surface-secondary border border-border rounded-tl-none"
-                      )}
-                    >
-                      {msg.text}
+              {loadingMessages ? (
+                <div className="flex items-center justify-center h-full text-muted">
+                  <Loader2 className="h-5 w-5 animate-spin mr-2" /> Cargando mensajes...
+                </div>
+              ) : messages.length === 0 ? (
+                <div className="flex flex-col items-center justify-center h-full text-muted gap-2">
+                  <MessageSquare className="h-10 w-10 text-border" />
+                  <p className="text-sm">Inicia la conversación</p>
+                </div>
+              ) : (
+                messages.map((msg, idx) => {
+                  const isMe = msg.senderId === userId;
+                  return (
+                    <div key={idx} className={cn("flex max-w-[80%] flex-col", isMe ? "self-end items-end" : "self-start items-start")}>
+                      <div className={cn("p-3 rounded-2xl text-sm shadow-sm",
+                        isMe ? "bg-primary text-primary-foreground rounded-tr-none"
+                          : "bg-surface-secondary border border-border rounded-tl-none")}>
+                        {msg.content}
+                      </div>
+                      <span className="text-[10px] text-muted mt-1 px-1">
+                        {formatTime(msg.createdAt)} {isMe && "✓✓"}
+                      </span>
                     </div>
-                    <span className="text-[10px] text-muted mt-1 px-1">
-                      {msg.time} {isMe && "✓✓"}
-                    </span>
-                  </div>
-                );
-              })}
+                  );
+                })
+              )}
+              <div ref={messagesEndRef} />
             </div>
 
-            {/* Chat Input */}
             <div className="p-4 border-t border-border bg-surface-secondary/10">
-              <form onSubmit={handleSendMessage} className="flex gap-2 relative">
-                <Button type="button" variant="ghost" size="icon" className="shrink-0 text-muted hover:text-foreground">
-                  <Paperclip className="h-5 w-5" />
-                </Button>
-                <Input 
-                  placeholder="Escribe un mensaje..."
-                  className="flex-1 bg-surface border-border"
-                  value={inputText}
-                  onChange={(e) => setInputText(e.target.value)}
-                />
-                <Button type="submit" size="icon" className="shrink-0" disabled={!inputText.trim()}>
-                  <Send className="h-4 w-4" />
+              <form onSubmit={handleSendMessage} className="flex gap-2">
+                <Input placeholder="Escribe un mensaje..." className="flex-1 bg-surface border-border"
+                  value={inputText} onChange={e => setInputText(e.target.value)} />
+                <Button type="submit" size="icon" className="shrink-0" disabled={!inputText.trim() || sending}>
+                  {sending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
                 </Button>
               </form>
             </div>
           </>
         ) : (
-           <div className="flex-1 flex flex-col items-center justify-center text-muted">
-              <MessageSquare className="h-12 w-12 text-border mb-4" />
-              <p>Selecciona un chat para empezar a conversar</p>
-           </div>
+          <div className="flex-1 flex flex-col items-center justify-center text-muted">
+            <MessageSquare className="h-12 w-12 text-border mb-4" />
+            <p>Selecciona un chat para empezar</p>
+          </div>
         )}
       </Card>
-
     </div>
   );
 }

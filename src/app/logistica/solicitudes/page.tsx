@@ -1,326 +1,398 @@
 "use client";
 
-import { useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { useEffect, useState } from "react";
+import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { FileText, Search, Clock, CheckCircle2, XCircle, ChevronRight, Download, Filter, Send } from "lucide-react";
-import Link from "next/link";
+import { Button } from "@/components/ui/button";
+import {
+  FileText, Clock, CheckCircle, XCircle, Plus, Eye,
+  Package, Building2, DollarSign, ClipboardList, X, AlertCircle,
+} from "lucide-react";
+import { getRequests, createRequest, getRequestStats } from "@/services/requestService";
 
-const MOCK_SOLICITUDES = [
-  {
-    id: "SC-2026-145",
-    fecha: "2026-04-24",
-    categoria: "Guantes de Nitrilo",
-    cantidad: 500,
-    costoEstimado: 1250.00,
-    estado: "Pendiente",
-    proveedor: "3M Perú S.A."
-  },
-  {
-    id: "SC-2026-144",
-    fecha: "2026-04-22",
-    categoria: "Cascos de Seguridad",
-    cantidad: 150,
-    costoEstimado: 3400.00,
-    estado: "Aprobado",
-    proveedor: "MSA Safety"
-  },
-  {
-    id: "SC-2026-141",
-    fecha: "2026-04-18",
-    categoria: "Botas Dieléctricas",
-    cantidad: 80,
-    costoEstimado: 4800.00,
-    estado: "Rechazado",
-    proveedor: "Sodimac Constructor"
-  },
-  {
-    id: "SC-2026-139",
-    fecha: "2026-04-15",
-    categoria: "Lentes Protectores",
-    cantidad: 300,
-    costoEstimado: 900.00,
-    estado: "Aprobado",
-    proveedor: "Seguridad Industrial S.A.C."
-  }
+interface PurchaseRequest {
+  id: number;
+  codigoSolicitud: string;
+  fecha: string;
+  categoria: string;
+  cantidad: number;
+  proveedor: string;
+  costoEstimado: number;
+  justificacion: string;
+  estado: string;
+}
+
+interface Stats {
+  totalSolicitudes: number;
+  pendientes: number;
+  aprobadas: number;
+  rechazadas: number;
+  totalCompras: number;
+}
+
+const CATEGORIAS = [
+  "Guantes de Nitrilo",
+  "Cascos de Seguridad",
+  "Lentes Protectores",
+  "Botas Dieléctricas",
+  "Mascarillas N95",
+  "Tapones Auditivos",
+  "Arneses de Seguridad",
 ];
 
 export default function SolicitudesPage() {
-  const [searchTerm, setSearchTerm] = useState("");
-  const [showRequestForm, setShowRequestForm] = useState(false);
-  const [selectedSolicitud, setSelectedSolicitud] = useState<any>(null);
+  const [requests, setRequests] = useState<PurchaseRequest[]>([]);
+  const [stats, setStats] = useState<Stats>({ totalSolicitudes: 0, pendientes: 0, aprobadas: 0, rechazadas: 0, totalCompras: 0 });
+  const [loading, setLoading] = useState(true);
+  const [createModalOpen, setCreateModalOpen] = useState(false);
+  const [viewRequest, setViewRequest] = useState<PurchaseRequest | null>(null);
+  const [submitting, setSubmitting] = useState(false);
 
-  const getStatusBadge = (estado: string) => {
-    switch (estado) {
-      case "Aprobado":
-        return <Badge className="bg-emerald-500/10 text-emerald-400 border-emerald-500/20 gap-1 px-2 py-1"><CheckCircle2 className="w-3 h-3" /> Aprobado</Badge>;
-      case "Rechazado":
-        return <Badge className="bg-rose-500/10 text-rose-400 border-rose-500/20 gap-1 px-2 py-1"><XCircle className="w-3 h-3" /> Rechazado</Badge>;
-      case "Pendiente":
-      default:
-        return <Badge className="bg-amber-500/10 text-amber-400 border-amber-500/20 gap-1 px-2 py-1"><Clock className="w-3 h-3" /> Pendiente a Gerencia</Badge>;
+  const [form, setForm] = useState({
+    categoria: "",
+    cantidad: "",
+    proveedor: "",
+    costoEstimado: "",
+    justificacion: "",
+  });
+
+  const load = async () => {
+    try {
+      const [reqs, st] = await Promise.all([getRequests(), getRequestStats()]);
+      setRequests(Array.isArray(reqs) ? reqs : []);
+      setStats(st);
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setLoading(false);
     }
+  };
+
+  useEffect(() => { load(); }, []);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSubmitting(true);
+    try {
+      await createRequest({
+        codigoSolicitud: `SC-${Date.now()}`,
+        fecha: new Date().toISOString().split("T")[0],
+        categoria: form.categoria,
+        cantidad: Number(form.cantidad),
+        proveedor: form.proveedor,
+        costoEstimado: Number(form.costoEstimado),
+        justificacion: form.justificacion,
+        estado: "PENDIENTE",
+      });
+      setCreateModalOpen(false);
+      setForm({ categoria: "", cantidad: "", proveedor: "", costoEstimado: "", justificacion: "" });
+      await load();
+    } catch {
+      alert("No se pudo enviar la solicitud");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const pending  = requests.filter((r) => r.estado?.toUpperCase() === "PENDIENTE");
+  const resolved = requests.filter((r) => r.estado?.toUpperCase() !== "PENDIENTE");
+
+  const statusBadge = (estado: string) => {
+    const e = estado?.toUpperCase();
+    if (e === "APROBADO")
+      return <Badge className="bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"><CheckCircle className="h-3 w-3 mr-1" />Aprobada</Badge>;
+    if (e === "RECHAZADO")
+      return <Badge className="bg-rose-500/10 text-rose-400 border border-rose-500/20"><XCircle className="h-3 w-3 mr-1" />Rechazada</Badge>;
+    return <Badge className="bg-amber-500/10 text-amber-400 border border-amber-500/20"><Clock className="h-3 w-3 mr-1" />Pendiente</Badge>;
   };
 
   return (
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-gradient-to-r from-slate-900 to-transparent p-6 rounded-2xl border border-slate-800">
+
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-white tracking-tight flex items-center gap-3">
+          <h1 className="text-3xl font-bold tracking-tight text-white mb-2 flex items-center gap-3">
             <FileText className="h-8 w-8 text-rose-500" />
-            Historial de Solicitudes
+            Solicitudes de Compra
           </h1>
-          <p className="text-slate-400 mt-2 text-sm max-w-xl">
-            Haz seguimiento del estado de las solicitudes de compra enviadas a Gerencia. Descarga los reportes o crea una nueva.
+          <p className="text-slate-400 text-sm max-w-xl">
+            Envía solicitudes de adquisición de EPP a Gerencia para su aprobación.
           </p>
         </div>
-        <div className="flex gap-3">
-          <Button variant="outline" className="border-slate-700 text-slate-300 hover:bg-slate-800 gap-2">
-            <Download className="w-4 h-4" /> Exportar CSV
-          </Button>
-          <Button 
-            onClick={() => setShowRequestForm(!showRequestForm)}
-            className="bg-rose-500 hover:bg-rose-600 text-white gap-2 shadow-lg shadow-rose-500/25 border-0 rounded-full px-6"
-          >
-            {showRequestForm ? "Volver a Solicitudes" : "Nueva Solicitud"}
-          </Button>
-        </div>
+        <Button
+          className="bg-rose-500 hover:bg-rose-600 text-white shadow-lg shadow-rose-500/25 rounded-full px-6"
+          onClick={() => setCreateModalOpen(true)}
+        >
+          <Plus className="h-4 w-4 mr-2" /> Nueva Solicitud
+        </Button>
       </div>
 
-      {!showRequestForm ? (
-        <Card className="bg-surface/50 border-slate-800 backdrop-blur-sm">
-        <CardHeader className="border-b border-slate-800/50 pb-6 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-          <div>
-            <CardTitle className="text-xl text-slate-200">Registro de Solicitudes de EPP</CardTitle>
-            <CardDescription>Todas las peticiones realizadas en el sistema.</CardDescription>
-          </div>
-          <div className="flex items-center gap-3 w-full md:w-auto">
-            <div className="relative w-full md:w-72">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500" />
-              <Input 
-                placeholder="Buscar por ID, Categoría o Proveedor..." 
-                className="pl-10 bg-slate-900/50 border-slate-700 focus:ring-rose-500 w-full"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-              />
-            </div>
-            <Button variant="outline" size="icon" className="border-slate-700 hover:bg-slate-800 shrink-0">
-              <Filter className="w-4 h-4 text-slate-400" />
-            </Button>
-          </div>
-        </CardHeader>
-        <CardContent className="p-0">
-          <Table>
-            <TableHeader className="bg-slate-900/30">
-              <TableRow className="border-slate-800 hover:bg-transparent">
-                <TableHead className="py-4 text-slate-400 font-medium">ID Solicitud</TableHead>
-                <TableHead className="py-4 text-slate-400 font-medium">Fecha</TableHead>
-                <TableHead className="py-4 text-slate-400 font-medium">Categoría EPP</TableHead>
-                <TableHead className="py-4 text-slate-400 font-medium">Proveedor Sugerido</TableHead>
-                <TableHead className="py-4 text-slate-400 font-medium text-right">Costo Estimado</TableHead>
-                <TableHead className="py-4 text-slate-400 font-medium text-center">Estado</TableHead>
-                <TableHead className="py-4 text-slate-400 font-medium text-right">Acción</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {MOCK_SOLICITUDES.filter(s => 
-                s.id.toLowerCase().includes(searchTerm.toLowerCase()) || 
-                s.categoria.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                s.proveedor.toLowerCase().includes(searchTerm.toLowerCase())
-              ).map((solicitud) => (
-                <TableRow key={solicitud.id} className="border-slate-800/50 hover:bg-slate-800/20 transition-colors">
-                  <TableCell className="py-4 font-mono text-sm text-slate-300">{solicitud.id}</TableCell>
-                  <TableCell className="py-4 text-slate-400 text-sm">{new Date(solicitud.fecha).toLocaleDateString()}</TableCell>
-                  <TableCell className="py-4">
-                    <div>
-                      <p className="text-slate-200 font-medium">{solicitud.categoria}</p>
-                      <p className="text-xs text-slate-500">{solicitud.cantidad} unidades</p>
-                    </div>
-                  </TableCell>
-                  <TableCell className="py-4 text-slate-300 text-sm">{solicitud.proveedor}</TableCell>
-                  <TableCell className="py-4 text-right text-slate-200 font-mono">
-                    ${solicitud.costoEstimado.toFixed(2)}
-                  </TableCell>
-                  <TableCell className="py-4 text-center">
-                    {getStatusBadge(solicitud.estado)}
-                  </TableCell>
-                  <TableCell className="py-4 text-right">
-                    <Button 
-                      variant="ghost" 
-                      size="sm" 
-                      className="text-rose-400 hover:text-rose-300 hover:bg-rose-500/10"
-                      onClick={() => setSelectedSolicitud(solicitud)}
-                    >
-                      Ver Detalles <ChevronRight className="w-4 h-4 ml-1" />
-                    </Button>
-                  </TableCell>
-                </TableRow>
-              ))}
-              {MOCK_SOLICITUDES.length === 0 && (
-                <TableRow>
-                  <TableCell colSpan={7} className="text-center py-10 text-slate-500">
-                    No se encontraron solicitudes.
-                  </TableCell>
-                </TableRow>
-              )}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
-      ) : (
-        /* Purchase Request Form - Premium Layout */
-        <Card className="bg-surface/80 border-slate-800 shadow-2xl max-w-4xl mx-auto animate-in zoom-in-95 backdrop-blur-xl">
-          <CardHeader className="border-b border-slate-800/50 pb-6 bg-slate-900/50 rounded-t-xl">
-            <CardTitle className="text-2xl flex items-center gap-2">
-              <FileText className="w-6 h-6 text-rose-500" /> Formulario de Solicitud de Compra
-            </CardTitle>
-            <CardDescription className="text-base">
-              Completa los detalles técnicos y financieros para generar la solicitud. Las solicitudes de alto valor requerirán aprobación de Gerencia General.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="p-6 sm:p-8 space-y-8">
-            
-            {/* Section 1 */}
-            <div>
-              <h3 className="text-lg font-semibold text-slate-200 mb-4 flex items-center gap-2">
-                 <span className="flex items-center justify-center w-6 h-6 rounded-full bg-rose-500/20 text-rose-500 text-xs">1</span> 
-                 Detalles del Equipo
-              </h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 bg-slate-900/50 p-5 rounded-xl border border-slate-800/50">
-                <div className="space-y-3">
-                  <label className="text-sm font-medium text-slate-400">Categoría de EPP</label>
-                  <select className="flex h-11 w-full items-center justify-between rounded-lg border border-slate-700 bg-slate-950 px-4 py-2 text-sm text-slate-200 focus:ring-2 focus:ring-rose-500 focus:border-transparent appearance-none transition-shadow">
-                    <option value="">Seleccionar categoría...</option>
-                    <option value="guantes">Guantes de Nitrilo</option>
-                    <option value="cascos">Cascos de Seguridad</option>
-                    <option value="lentes">Lentes Protectores</option>
-                    <option value="botas">Botas Dieléctricas</option>
-                  </select>
-                </div>
-                <div className="space-y-3">
-                  <label className="text-sm font-medium text-slate-400">Cantidad (Unidades)</label>
-                  <Input type="number" placeholder="Ej. 500" className="h-11 bg-slate-950 border-slate-700 focus:ring-rose-500 rounded-lg px-4" />
-                </div>
-              </div>
-            </div>
-
-            {/* Section 2 */}
-            <div>
-              <h3 className="text-lg font-semibold text-slate-200 mb-4 flex items-center gap-2">
-                 <span className="flex items-center justify-center w-6 h-6 rounded-full bg-rose-500/20 text-rose-500 text-xs">2</span> 
-                 Información del Proveedor (Sugerido)
-              </h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 bg-slate-900/50 p-5 rounded-xl border border-slate-800/50">
-                <div className="space-y-3">
-                  <label className="text-sm font-medium text-slate-400">Nombre del Proveedor</label>
-                  <Input placeholder="Ej. 3M Perú S.A." className="h-11 bg-slate-950 border-slate-700 focus:ring-rose-500 rounded-lg px-4" />
-                </div>
-                <div className="space-y-3">
-                  <label className="text-sm font-medium text-slate-400">Costo Estimado (Total USD)</label>
-                  <div className="relative">
-                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500">$</span>
-                    <Input type="number" placeholder="0.00" className="h-11 bg-slate-950 border-slate-700 focus:ring-rose-500 rounded-lg pl-8" />
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Section 3 */}
-            <div>
-              <h3 className="text-lg font-semibold text-slate-200 mb-4 flex items-center gap-2">
-                 <span className="flex items-center justify-center w-6 h-6 rounded-full bg-rose-500/20 text-rose-500 text-xs">3</span> 
-                 Justificación y Notas Adicionales
-              </h3>
-              <div className="bg-slate-900/50 p-5 rounded-xl border border-slate-800/50">
-                <textarea 
-                  className="flex w-full rounded-lg border border-slate-700 bg-slate-950 px-4 py-3 text-sm text-slate-200 focus:outline-none focus:ring-2 focus:ring-rose-500 focus:border-transparent min-h-[120px] resize-y transition-shadow"
-                  placeholder="Explica la urgencia técnica. Ej: 'Stock actual en nivel crítico (10 unidades). El consumo proyectado para la parada de planta de este mes requiere al menos 400 unidades para cubrir todas las áreas...'"
-                ></textarea>
-              </div>
-            </div>
-
-            {/* Footer */}
-            <div className="flex flex-col sm:flex-row items-center justify-between pt-6 border-t border-slate-800/50 gap-4">
-              <div className="flex items-center gap-3 px-4 py-3 rounded-lg bg-amber-500/10 border border-amber-500/20 w-full sm:w-auto">
-                <Clock className="w-5 h-5 text-amber-500 shrink-0" />
-                <span className="text-sm text-amber-400 font-medium">SLA de Aprobación: 24-48 hrs hábiles</span>
-              </div>
-              <div className="flex gap-3 w-full sm:w-auto">
-                <Button variant="ghost" onClick={() => setShowRequestForm(false)} className="w-full sm:w-auto rounded-full hover:bg-slate-800">
-                  Cancelar
-                </Button>
-                <Button className="w-full sm:w-auto bg-gradient-to-r from-rose-600 to-rose-500 hover:from-rose-500 hover:to-rose-400 text-white gap-2 rounded-full px-8 shadow-lg shadow-rose-500/25 border-0">
-                  <Send className="w-4 h-4" /> Enviar Solicitud a Gerencia
-                </Button>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Details Modal Overlay */}
-      {selectedSolicitud && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm animate-in fade-in duration-200">
-          <Card className="w-full max-w-2xl bg-slate-900 border-slate-700 shadow-2xl">
-            <CardHeader className="border-b border-slate-800 pb-4">
-              <div className="flex justify-between items-start">
-                <div>
-                  <CardTitle className="text-xl text-slate-200 flex items-center gap-2">
-                    <FileText className="w-5 h-5 text-rose-500" /> Detalle de Solicitud {selectedSolicitud.id}
-                  </CardTitle>
-                  <CardDescription>
-                    Creada el {new Date(selectedSolicitud.fecha).toLocaleDateString()}
-                  </CardDescription>
-                </div>
-                <Button variant="ghost" size="icon" onClick={() => setSelectedSolicitud(null)} className="text-slate-400 hover:text-white hover:bg-slate-800">
-                  <XCircle className="w-5 h-5" />
-                </Button>
-              </div>
-            </CardHeader>
-            <CardContent className="p-6 space-y-6">
-              <div className="grid grid-cols-2 gap-6">
-                <div>
-                  <p className="text-sm font-medium text-slate-500 mb-1">Categoría Solicitada</p>
-                  <p className="text-base text-slate-200">{selectedSolicitud.categoria}</p>
+      {/* Stats */}
+      <div className="grid gap-4 sm:grid-cols-4">
+        {[
+          { label: "Total", value: stats.totalSolicitudes, color: "text-rose-500", icon: FileText },
+          { label: "Pendientes", value: stats.pendientes, color: "text-amber-400", icon: Clock },
+          { label: "Aprobadas", value: stats.aprobadas, color: "text-emerald-400", icon: CheckCircle },
+          { label: "Rechazadas", value: stats.rechazadas, color: "text-rose-400", icon: XCircle },
+        ].map(({ label, value, color, icon: Icon }) => (
+          <Card key={label} className="bg-slate-900 border-slate-800">
+            <CardContent className="p-4">
+              <div className="flex items-center gap-3">
+                <div className="p-2 rounded-lg bg-slate-800">
+                  <Icon className={`h-5 w-5 ${color}`} />
                 </div>
                 <div>
-                  <p className="text-sm font-medium text-slate-500 mb-1">Estado de Aprobación</p>
-                  {getStatusBadge(selectedSolicitud.estado)}
-                </div>
-                <div>
-                  <p className="text-sm font-medium text-slate-500 mb-1">Cantidad</p>
-                  <p className="text-base text-slate-200">{selectedSolicitud.cantidad} unidades</p>
-                </div>
-                <div>
-                  <p className="text-sm font-medium text-slate-500 mb-1">Costo Total Estimado</p>
-                  <p className="text-base text-rose-400 font-mono">${selectedSolicitud.costoEstimado.toFixed(2)} USD</p>
-                </div>
-                <div className="col-span-2">
-                  <p className="text-sm font-medium text-slate-500 mb-1">Proveedor Sugerido</p>
-                  <div className="p-3 bg-slate-950 rounded-lg border border-slate-800 text-slate-300">
-                    {selectedSolicitud.proveedor}
-                  </div>
-                </div>
-                <div className="col-span-2">
-                  <p className="text-sm font-medium text-slate-500 mb-1">Justificación Técnica</p>
-                  <div className="p-4 bg-slate-950 rounded-lg border border-slate-800 text-slate-400 text-sm italic">
-                    "El stock actual se encuentra por debajo del mínimo de seguridad establecido. Se requiere reposición urgente para asegurar el abastecimiento del personal de planta durante el próximo trimestre. Las certificaciones de calidad de este proveedor ya han sido validadas por SST."
-                  </div>
+                  <p className="text-xs text-slate-400">{label}</p>
+                  <p className={`text-2xl font-bold ${color}`}>{loading ? "—" : value}</p>
                 </div>
               </div>
             </CardContent>
-            <div className="p-6 border-t border-slate-800 flex justify-end gap-3 bg-slate-900/50 rounded-b-xl">
-              <Button variant="outline" className="border-slate-700 text-slate-300 hover:bg-slate-800" onClick={() => setSelectedSolicitud(null)}>
-                Cerrar
-              </Button>
-              <Button className="bg-rose-500 hover:bg-rose-600 text-white gap-2 border-0">
-                <Download className="w-4 h-4" /> Exportar PDF
-              </Button>
-            </div>
           </Card>
+        ))}
+      </div>
+
+      {/* Pendientes */}
+      <section>
+        <h2 className="text-xl font-semibold mb-4 flex items-center gap-2 text-white">
+          <Clock className="h-5 w-5 text-amber-400" /> Pendientes de Aprobación
+        </h2>
+        {pending.length === 0 ? (
+          <Card className="bg-slate-900 border-slate-800">
+            <CardContent className="p-8 text-center">
+              <CheckCircle className="h-12 w-12 text-emerald-400 mx-auto mb-3" />
+              <p className="font-semibold text-slate-300">No hay solicitudes pendientes</p>
+            </CardContent>
+          </Card>
+        ) : (
+          <div className="grid gap-4 md:grid-cols-2">
+            {pending.map((req) => (
+              <Card key={req.id} className="bg-slate-900 border-slate-800">
+                <CardContent className="p-5">
+                  <div className="flex items-start justify-between mb-4">
+                    <div className="flex items-center gap-3">
+                      <div className="h-12 w-12 rounded-lg bg-amber-500/10 flex items-center justify-center">
+                        <Package className="h-6 w-6 text-amber-400" />
+                      </div>
+                      <div>
+                        <h3 className="font-semibold text-slate-200">{req.categoria}</h3>
+                        <p className="text-xs text-slate-400">{req.codigoSolicitud} · {req.fecha}</p>
+                      </div>
+                    </div>
+                    {statusBadge(req.estado)}
+                  </div>
+                  <div className="flex items-center gap-6 text-sm mb-4">
+                    <div>
+                      <p className="text-xs text-slate-400">Cantidad</p>
+                      <p className="font-bold text-slate-200">{req.cantidad} uds.</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-slate-400">Costo estimado</p>
+                      <p className="font-bold text-rose-400">S/ {req.costoEstimado?.toFixed(2)}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-slate-400">Proveedor</p>
+                      <p className="font-bold text-slate-200">{req.proveedor || "—"}</p>
+                    </div>
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="w-full border-slate-700 hover:bg-slate-800 text-slate-300"
+                    onClick={() => setViewRequest(req)}
+                  >
+                    <Eye className="h-4 w-4 mr-2" /> Ver Detalles
+                  </Button>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        )}
+      </section>
+
+      {/* Resueltas */}
+      {resolved.length > 0 && (
+        <section>
+          <h2 className="text-xl font-semibold mb-4 flex items-center gap-2 text-slate-400">
+            <CheckCircle className="h-5 w-5" /> Solicitudes Resueltas
+          </h2>
+          <div className="grid gap-4 md:grid-cols-2">
+            {resolved.map((req) => (
+              <Card key={req.id} className="bg-slate-900/60 border-slate-800 opacity-80">
+                <CardContent className="p-5">
+                  <div className="flex items-start justify-between mb-3">
+                    <div className="flex items-center gap-3">
+                      <div className={`h-10 w-10 rounded-lg flex items-center justify-center ${req.estado?.toUpperCase() === "APROBADO" ? "bg-emerald-500/10" : "bg-rose-500/10"}`}>
+                        {req.estado?.toUpperCase() === "APROBADO"
+                          ? <CheckCircle className="h-5 w-5 text-emerald-400" />
+                          : <XCircle className="h-5 w-5 text-rose-400" />}
+                      </div>
+                      <div>
+                        <h3 className="font-semibold text-sm text-slate-200">{req.categoria}</h3>
+                        <p className="text-xs text-slate-400">{req.cantidad} uds. · S/ {req.costoEstimado?.toFixed(2)}</p>
+                      </div>
+                    </div>
+                    {statusBadge(req.estado)}
+                  </div>
+                  <div className="flex items-center justify-between text-xs text-slate-400">
+                    <span>{req.codigoSolicitud}</span>
+                    <Button variant="ghost" size="sm" className="h-6 text-xs text-slate-400" onClick={() => setViewRequest(req)}>
+                      <Eye className="h-3 w-3 mr-1" /> Ver
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {/* Modal Crear */}
+      {createModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
+          <div className="bg-slate-950 border border-slate-800 shadow-2xl rounded-xl w-full max-w-lg overflow-hidden max-h-[90vh] overflow-y-auto">
+            <div className="p-5 border-b border-slate-800 flex items-center justify-between sticky top-0 bg-slate-950">
+              <div className="flex items-center gap-3">
+                <div className="h-10 w-10 rounded-lg bg-rose-500/10 flex items-center justify-center">
+                  <FileText className="h-5 w-5 text-rose-500" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-lg text-white">Nueva Solicitud de Compra</h3>
+                  <p className="text-xs text-slate-400">Será revisada por Gerencia General</p>
+                </div>
+              </div>
+              <button onClick={() => setCreateModalOpen(false)} className="text-slate-400 hover:text-white p-2 rounded-lg hover:bg-slate-800">
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleSubmit} className="p-6 space-y-5">
+              <div className="space-y-2">
+                <label className="text-sm font-semibold text-slate-300">Categoría EPP</label>
+                <select
+                  value={form.categoria}
+                  onChange={(e) => setForm({ ...form, categoria: e.target.value })}
+                  className="flex h-10 w-full rounded-md border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-slate-200"
+                  required
+                >
+                  <option value="">Selecciona una categoría...</option>
+                  {CATEGORIAS.map((c) => <option key={c}>{c}</option>)}
+                </select>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <label className="text-sm font-semibold text-slate-300 flex items-center gap-1"><Package className="h-3 w-3" /> Cantidad</label>
+                  <input
+                    type="number" min="1"
+                    value={form.cantidad}
+                    onChange={(e) => setForm({ ...form, cantidad: e.target.value })}
+                    placeholder="0"
+                    className="flex h-10 w-full rounded-md border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-slate-200 focus:outline-none focus:ring-2 focus:ring-rose-500"
+                    required
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-semibold text-slate-300 flex items-center gap-1"><DollarSign className="h-3 w-3" /> Costo Estimado (S/)</label>
+                  <input
+                    type="number" min="0" step="0.01"
+                    value={form.costoEstimado}
+                    onChange={(e) => setForm({ ...form, costoEstimado: e.target.value })}
+                    placeholder="0.00"
+                    className="flex h-10 w-full rounded-md border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-slate-200 focus:outline-none focus:ring-2 focus:ring-rose-500"
+                    required
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-sm font-semibold text-slate-300 flex items-center gap-1"><Building2 className="h-3 w-3" /> Proveedor</label>
+                <input
+                  value={form.proveedor}
+                  onChange={(e) => setForm({ ...form, proveedor: e.target.value })}
+                  placeholder="Ej. 3M Perú"
+                  className="flex h-10 w-full rounded-md border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-slate-200 focus:outline-none focus:ring-2 focus:ring-rose-500"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-sm font-semibold text-slate-300 flex items-center gap-1"><ClipboardList className="h-3 w-3" /> Justificación</label>
+                <textarea
+                  value={form.justificacion}
+                  onChange={(e) => setForm({ ...form, justificacion: e.target.value })}
+                  placeholder="Describe la necesidad de compra..."
+                  className="flex w-full rounded-md border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-slate-200 min-h-[100px] focus:outline-none focus:ring-2 focus:ring-rose-500"
+                  required
+                />
+              </div>
+
+              <div className="p-4 bg-rose-500/5 border border-rose-500/20 rounded-lg">
+                <p className="text-xs text-rose-300 flex items-center gap-2">
+                  <AlertCircle className="h-4 w-4 shrink-0" />
+                  La solicitud será enviada a Gerencia General. Recibirás una notificación cuando sea revisada.
+                </p>
+              </div>
+
+              <div className="flex justify-end gap-3 pt-4 border-t border-slate-800">
+                <Button type="button" variant="ghost" className="text-slate-400" onClick={() => setCreateModalOpen(false)}>
+                  Cancelar
+                </Button>
+                <Button type="submit" disabled={submitting} className="bg-rose-500 hover:bg-rose-600 text-white">
+                  <FileText className="h-4 w-4 mr-2" />
+                  {submitting ? "Enviando..." : "Enviar a Gerencia"}
+                </Button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Ver Detalle */}
+      {viewRequest && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
+          <div className="bg-slate-950 border border-slate-800 shadow-2xl rounded-xl w-full max-w-md overflow-hidden">
+            <div className="p-5 border-b border-slate-800 flex items-center justify-between">
+              <div>
+                <h3 className="font-bold text-lg text-white">{viewRequest.categoria}</h3>
+                <p className="text-xs text-slate-400">{viewRequest.codigoSolicitud}</p>
+              </div>
+              <button onClick={() => setViewRequest(null)} className="text-slate-400 hover:text-white p-2 rounded-lg hover:bg-slate-800">
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            <div className="p-6 space-y-4">
+              <div className="flex items-center justify-between">
+                <div className="flex gap-6 text-sm">
+                  <div>
+                    <p className="text-xs text-slate-400">Cantidad</p>
+                    <p className="font-bold text-slate-200">{viewRequest.cantidad} uds.</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-slate-400">Costo estimado</p>
+                    <p className="font-bold text-rose-400">S/ {viewRequest.costoEstimado?.toFixed(2)}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-slate-400">Fecha</p>
+                    <p className="font-bold text-slate-200">{viewRequest.fecha}</p>
+                  </div>
+                </div>
+                <div>{statusBadge(viewRequest.estado)}</div>
+              </div>
+              {viewRequest.proveedor && (
+                <div>
+                  <p className="text-xs text-slate-400 mb-1">Proveedor</p>
+                  <p className="text-sm text-slate-200">{viewRequest.proveedor}</p>
+                </div>
+              )}
+              <div>
+                <p className="text-xs text-slate-400 mb-1">Justificación</p>
+                <p className="text-sm text-slate-300">{viewRequest.justificacion}</p>
+              </div>
+            </div>
+            <div className="p-4 border-t border-slate-800 flex justify-end">
+              <Button variant="ghost" className="text-slate-400" onClick={() => setViewRequest(null)}>Cerrar</Button>
+            </div>
+          </div>
         </div>
       )}
     </div>

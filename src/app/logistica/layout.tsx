@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Truck, FileText, BarChart3, LogOut, Archive } from "lucide-react";
+import { Truck, FileText, BarChart3, LogOut, ClipboardList } from "lucide-react";
 import { useSession, signOut } from "next-auth/react";
 
 export default function LogisticaLayout({ children }: { children: React.ReactNode }) {
@@ -15,7 +15,9 @@ export default function LogisticaLayout({ children }: { children: React.ReactNod
     const idToken = session?.idToken;
     let logoutUrl = `${issuer}/protocol/openid-connect/logout?post_logout_redirect_uri=${encodeURIComponent(window.location.origin + "/login")}&client_id=${clientId}`;
     if (idToken) logoutUrl += `&id_token_hint=${idToken}`;
-    signOut({ redirect: false }).then(() => { window.location.href = logoutUrl; });
+    signOut({ redirect: false }).then(() => {
+      window.location.href = logoutUrl;
+    });
   };
 
   return (
@@ -39,11 +41,17 @@ export default function LogisticaLayout({ children }: { children: React.ReactNod
             <Link href="/logistica/solicitudes" className={`flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${pathname.includes('/solicitudes') ? 'bg-rose-500/10 text-rose-400' : 'text-slate-400 hover:bg-slate-800 hover:text-slate-200'}`}>
               <FileText className="h-4 w-4" /> Solicitudes de Compra
             </Link>
+            <Link href="/logistica/aprobaciones" className={`flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${pathname.includes("/aprobaciones") ? 'bg-rose-500/10 text-rose-400' : 'text-slate-400 hover:bg-slate-800 hover:text-slate-200'}`}>
+              <ClipboardList className="h-4 w-4" /> Estado de Solicitudes
+            </Link>
           </nav>
         </div>
 
         <div className="p-4 border-t border-slate-800">
-          <button onClick={handleLogout} className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium text-slate-400 hover:bg-slate-800 hover:text-slate-200 transition-colors w-full">
+          <button
+            onClick={handleLogout}
+            className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 transition-colors w-full"
+          >
             <LogOut className="h-4 w-4" /> Cerrar Sesión
           </button>
         </div>

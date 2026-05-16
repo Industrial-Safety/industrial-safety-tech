@@ -1,155 +1,152 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useSession } from "next-auth/react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { HardHat, Shield, CloudUpload, CheckCircle, AlertTriangle, XCircle, Camera } from "lucide-react";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { HardHat, Package, Calendar, Hash } from "lucide-react";
+import { getEppDeliveriesByDni } from "@/services/requestService";
 
-// Mock Data
-const ASSIGNED_EQUIPMENT = [
-  { id: "epp-001", name: "Casco de Seguridad ABS", status: "approved", lastCheck: "15 Abr 2026", nextCheck: "15 Oct 2026", image: "https://images.unsplash.com/photo-1579621970233-aefbd922880a?w=400&h=400&fit=crop" },
-  { id: "epp-002", name: "Lentes de Policarbonato", status: "pending", lastCheck: "--", nextCheck: "Requiere evidencia", image: "https://images.unsplash.com/photo-1549449033-9366479fdfa7?w=400&h=400&fit=crop" },
-  { id: "epp-003", name: "Botas Dieléctricas Cat. 3", status: "rejected", lastCheck: "10 Ene 2026", nextCheck: "Reemplazo Urgente", image: null },
-  { id: "epp-004", name: "Chaleco Reflectivo", status: "approved", lastCheck: "01 Mar 2026", nextCheck: "01 Sep 2026", image: "https://images.unsplash.com/photo-1621255562719-74d6423d24ab?w=400&h=400&fit=crop" },
-];
+interface EppDelivery {
+  id: number;
+  inventoryItemId: number;
+  inventoryItemDescripcion: string;
+  workerDni: string;
+  workerName: string;
+  cantidadEntregada: number;
+  fechaEntrega: string;
+}
 
 export default function EquipmentPage() {
-  const [selectedEq, setSelectedEq] = useState<string | null>(null);
+  const { data: session } = useSession();
+  const [deliveries, setDeliveries] = useState<EppDelivery[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
-  const getStatusIcon = (status: string) => {
-    switch (status) {
-      case 'approved': return <CheckCircle className="h-5 w-5 text-success" />;
-      case 'pending': return <AlertTriangle className="h-5 w-5 text-warning" />;
-      case 'rejected': return <XCircle className="h-5 w-5 text-danger" />;
-      default: return null;
+  useEffect(() => {
+    const dni = (session as any)?.dni || (session as any)?.user?.dni;
+    if (!dni) {
+      // si no está en sesión, intentar desde userData via proxy
+      fetchWithFallback();
+      return;
+    }
+    loadDeliveries(dni);
+  }, [session]);
+
+  const fetchWithFallback = async () => {
+    try {
+      const dbId = (session as any)?.dbId || session?.user?.id;
+      if (!dbId) { setLoading(false); return; }
+      const res = await fetch(`/api/proxy/users/${dbId}`);
+      if (!res.ok) throw new Error();
+      const userData = await res.json();
+      if (userData?.dni) await loadDeliveries(userData.dni);
+    } catch {
+      setError("No se pudo obtener el DNI del trabajador.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const loadDeliveries = async (dni: string) => {
+    try {
+      const data = await getEppDeliveriesByDni(dni);
+      setDeliveries(Array.isArray(data) ? data : []);
+    } catch {
+      setError("No se pudieron cargar las entregas de EPP.");
+    } finally {
+      setLoading(false);
     }
   };
 
   return (
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
-      
+
       <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold tracking-tight mb-2 flex items-center gap-2">
-            <HardHat className="h-8 w-8 text-primary" /> Estado de EPP
+            <HardHat className="h-8 w-8 text-primary" /> Mi EPP Asignado
           </h1>
-          <p className="text-muted">Revisa tu indumentaria asignada y reporta cualquier daño para solicitar un reemplazo.</p>
+          <p className="text-muted">Historial de equipos de protección personal entregados a tu nombre.</p>
         </div>
-        <Button variant="outline" className="shrink-0 gap-2 shadow-lg shadow-primary/5 border-primary/20 hover:bg-primary/10">
-          <AlertTriangle className="h-4 w-4" /> Historial de Reportes
-        </Button>
+        <Badge variant="outline" className="self-start sm:self-auto border-primary/30 text-primary">
+          {loading ? "Cargando..." : `${deliveries.length} entrega${deliveries.length !== 1 ? "s" : ""} registrada${deliveries.length !== 1 ? "s" : ""}`}
+        </Badge>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        
-        {/* Equipment List */}
-        <div className="lg:col-span-2 space-y-4">
-          <h2 className="text-xl font-semibold mb-4">Indumentaria Asignada</h2>
-          
-          <div className="grid gap-4 sm:grid-cols-2">
-            {ASSIGNED_EQUIPMENT.map((eq) => (
-              <Card 
-                key={eq.id} 
-                className={`cursor-pointer transition-all border-2 overflow-hidden group ${selectedEq === eq.id ? 'border-primary ring-2 ring-primary/20 scale-[1.02]' : 'border-border/50 hover:border-primary/50'}`}
-                onClick={() => setSelectedEq(eq.id)}
-              >
-                <div className="flex h-32">
-                  <div className="w-1/3 min-w-[100px] bg-surface-secondary/50 relative border-r border-border/50">
-                     {eq.image ? (
-                        <img src={eq.image} alt={eq.name} className="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-opacity" />
-                     ) : (
-                        <div className="w-full h-full flex items-center justify-center bg-black/20 text-muted">
-                           <Shield className="h-8 w-8 opacity-20" />
+      <Card className="bg-surface/50 border-border">
+        <CardHeader className="border-b border-border/50 pb-4">
+          <CardTitle className="text-lg flex items-center gap-2">
+            <Package className="h-5 w-5 text-primary" /> Historial de Entregas
+          </CardTitle>
+          <CardDescription>Registro oficial de todos los EPP recibidos.</CardDescription>
+        </CardHeader>
+        <CardContent className="p-0">
+          {loading ? (
+            <p className="text-center text-muted py-12">Cargando entregas...</p>
+          ) : error ? (
+            <p className="text-center text-danger py-12">{error}</p>
+          ) : deliveries.length === 0 ? (
+            <div className="text-center py-16">
+              <HardHat className="h-14 w-14 text-muted mx-auto mb-4 opacity-30" />
+              <p className="font-semibold text-foreground">Sin entregas registradas</p>
+              <p className="text-sm text-muted mt-1">Cuando Logística te asigne EPP aparecerá aquí.</p>
+            </div>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow className="border-border/50">
+                  <TableHead className="pl-6">
+                    <div className="flex items-center gap-1"><Hash className="h-3 w-3" /> ID</div>
+                  </TableHead>
+                  <TableHead>EPP / Categoría</TableHead>
+                  <TableHead>
+                    <div className="flex items-center gap-1"><Package className="h-3 w-3" /> Cantidad</div>
+                  </TableHead>
+                  <TableHead>
+                    <div className="flex items-center gap-1"><Calendar className="h-3 w-3" /> Fecha de Entrega</div>
+                  </TableHead>
+                  <TableHead>Estado</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {deliveries.map((d) => (
+                  <TableRow key={d.id} className="border-border/50 hover:bg-surface-secondary/30 transition-colors">
+                    <TableCell className="pl-6 font-mono text-xs text-muted">
+                      #{d.id}
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-3">
+                        <div className="h-9 w-9 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                          <HardHat className="h-4 w-4 text-primary" />
                         </div>
-                     )}
-                     <div className="absolute top-2 left-2 z-10 bg-surface/80 p-0.5 rounded-full backdrop-blur-md shadow-sm">
-                       {getStatusIcon(eq.status)}
-                     </div>
-                  </div>
-                  <div className="p-4 flex flex-col justify-between flex-1 min-w-0">
-                    <div>
-                      <p className="font-semibold text-sm line-clamp-2 leading-tight mb-1">{eq.name}</p>
-                      <p className="text-[10px] uppercase tracking-wider text-muted font-mono">{eq.id}</p>
-                    </div>
-                    <div>
-                      <Badge 
-                        variant="outline" 
-                        className={`text-[10px] py-0 h-5 mt-2
-                          ${eq.status === 'approved' && 'text-success border-success/30 bg-success/5'}
-                          ${eq.status === 'pending' && 'text-warning border-warning/30 bg-warning/5'}
-                          ${eq.status === 'rejected' && 'text-danger border-danger/30 bg-danger/5'}
-                        `}
-                      >
-                        {eq.status === 'approved' && 'Óptimas Condiciones'}
-                        {eq.status === 'pending' && 'Pendiente Revisión'}
-                        {eq.status === 'rejected' && 'Recomendado Cambio'}
+                        <div>
+                          <p className="font-semibold text-sm text-foreground">{d.inventoryItemDescripcion}</p>
+                          <p className="text-xs text-muted">DNI: {d.workerDni}</p>
+                        </div>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant="outline" className="border-primary/30 text-primary">
+                        {d.cantidadEntregada} uds.
                       </Badge>
-                    </div>
-                  </div>
-                </div>
-              </Card>
-            ))}
-          </div>
-        </div>
-
-        {/* Upload Panel */}
-        <div className="lg:col-span-1">
-           <Card className="bg-surface/50 border-border sticky top-6">
-            <CardHeader className="border-b border-border/50 bg-black/10">
-              <CardTitle className="text-lg flex items-center gap-2">
-                <Camera className="h-5 w-5 text-primary" /> Reportar Daño o Desgaste
-              </CardTitle>
-              <CardDescription>
-                Si tu equipo está roto o dañado, toma una foto para registrar el reporte y solicitar un reemplazo.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="p-6 space-y-6">
-              
-              {!selectedEq ? (
-                <div className="flex flex-col items-center justify-center text-center p-8 border-2 border-dashed border-border rounded-xl bg-surface-secondary/20">
-                   <HardHat className="h-12 w-12 text-muted mb-4 opacity-50" />
-                   <p className="text-sm font-medium text-foreground">Selecciona un equipo</p>
-                   <p className="text-xs text-muted mt-2">Haz clic en un ítem de tu inventario para reportar su estado.</p>
-                </div>
-              ) : (
-                <div className="animate-in fade-in duration-300">
-                  <div className="mb-4">
-                    <p className="text-sm font-bold text-primary">Equipo Seleccionado:</p>
-                    <p className="text-base font-semibold">{ASSIGNED_EQUIPMENT.find(e => e.id === selectedEq)?.name}</p>
-                  </div>
-                  
-                  <div className="border-2 border-dashed border-primary/40 rounded-xl p-8 flex flex-col items-center justify-center text-center bg-primary/5 hover:bg-primary/10 transition-colors cursor-pointer group">
-                    <div className="p-4 bg-primary/10 rounded-full mb-4 group-hover:scale-110 transition-transform">
-                      <CloudUpload className="h-8 w-8 text-primary" />
-                    </div>
-                    <p className="text-sm font-semibold mb-1">Arrastra tu foto aquí</p>
-                    <p className="text-xs text-muted">Soporta JPG, PNG (Max 5MB)</p>
-                    <Button variant="outline" size="sm" className="mt-4 border-primary/50 hover:bg-primary/20">
-                      Examinar Archivos
-                    </Button>
-                  </div>
-                  
-                  <div className="mt-6 bg-surface-secondary/50 rounded-lg p-4 border border-border/50">
-                    <h4 className="text-xs font-semibold uppercase tracking-wider text-muted mb-2">Instrucciones de Reporte</h4>
-                    <ul className="text-xs space-y-2 text-foreground/80">
-                      <li className="flex gap-2 items-start"><CheckCircle className="h-3 w-3 text-success shrink-0 mt-0.5" /> Toma una foto clara del daño o desgaste.</li>
-                      <li className="flex gap-2 items-start"><CheckCircle className="h-3 w-3 text-success shrink-0 mt-0.5" /> El reporte será enviado a tu Jefe de Seguridad.</li>
-                      <li className="flex gap-2 items-start"><CheckCircle className="h-3 w-3 text-success shrink-0 mt-0.5" /> Mantén tu equipo actual hasta recibir el reemplazo.</li>
-                    </ul>
-                  </div>
-
-                  <Button className="w-full mt-6 bg-danger hover:bg-danger/90 text-white font-bold shadow-md gap-2">
-                    <AlertTriangle className="h-4 w-4" /> Registrar Reporte y Solicitar Cambio
-                  </Button>
-                </div>
-              )}
-              
-            </CardContent>
-          </Card>
-        </div>
-
-      </div>
+                    </TableCell>
+                    <TableCell className="text-sm text-muted">
+                      {d.fechaEntrega}
+                    </TableCell>
+                    <TableCell>
+                      <Badge className="bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-xs">
+                        Entregado
+                      </Badge>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 }

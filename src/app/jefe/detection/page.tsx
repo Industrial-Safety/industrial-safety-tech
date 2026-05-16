@@ -1,46 +1,61 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Camera, Eye, AlertTriangle, CheckCircle, User, ShieldAlert, Check } from "lucide-react";
-
-type DetectionStatus = "violation_pending" | "violation_confirmed" | "compliant";
-
-type Detection = {
-  id: number;
-  camera: string;
-  time: string;
-  detection: string;
-  status: DetectionStatus;
-  confidence: number;
-  employee: string | null;
-  area: string;
-};
-
-const initialDetections: Detection[] = [
-  { id: 1, camera: "Cámara N-03", time: "09:42:15", detection: "Sin casco", status: "violation_pending", confidence: 97, employee: "Alex Rivera", area: "Zona de Carga" },
-  { id: 2, camera: "Cámara E-07", time: "09:15:33", detection: "Sin guantes", status: "violation_pending", confidence: 89, employee: "Miguel Torres", area: "Línea de Ensamblaje" },
-  { id: 3, camera: "Cámara S-01", time: "08:58:02", detection: "Sin lentes", status: "violation_confirmed", confidence: 94, employee: "Carlos Mendoza", area: "Taller Principal" },
-  { id: 4, camera: "Cámara N-02", time: "08:30:44", detection: "EPP completo", status: "compliant", confidence: 99, employee: "Ana Silva", area: "Zona de Carga" },
-  { id: 5, camera: "Cámara W-05", time: "08:12:18", detection: "EPP completo", status: "compliant", confidence: 98, employee: "Roberto Flores", area: "Almacén" },
-];
+import { Camera, Eye, AlertTriangle, CheckCircle, User, ShieldAlert, Check, X } from "lucide-react";
+import { getIncidents, reviewIncident, Incident } from "../../../services/incidentService";
 
 export default function DetectionPage() {
-  const [detections, setDetections] = useState<Detection[]>(initialDetections);
-  const [selectedDetection, setSelectedDetection] = useState<Detection | null>(null);
+  const [incidents, setIncidents] = useState<Incident[]>([]);
+  const [selected, setSelected] = useState<Incident | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [reviewNotes, setReviewNotes] = useState("");
 
-  const pendingViolations = detections.filter((d) => d.status === "violation_pending").length;
-  const confirmedViolations = detections.filter((d) => d.status === "violation_confirmed").length;
-  const compliant = detections.filter((d) => d.status === "compliant").length;
+  // Carga incidentes del backend
+  useEffect(() => {
+    fetchIncidents();
+    const interval = setInterval(fetchIncidents, 10000); // refresca cada 10s
+    return () => clearInterval(interval);
+  }, []);
 
-  const handleApprove = (id: number) => {
-    setDetections(detections.map(d => 
-      d.id === id ? { ...d, status: "violation_confirmed" } : d
-    ));
-    setSelectedDetection(null);
-  };
+  async function fetchIncidents() {
+    try {
+      const data = await getIncidents();
+      setIncidents(data);
+    } catch (e) {
+      console.error("Error cargando incidentes:", e);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleReview(status: "APPROVED" | "REJECTED") {
+    if (!selected) return;
+    try {
+      await reviewIncident(selected.id, status, reviewNotes || (status === "APPROVED" ? "Infracción confirmada" : "Falso positivo"));
+      setSelected(null);
+      setReviewNotes("");
+      fetchIncidents();
+    } catch (e) {
+      console.error("Error al revisar:", e);
+    }
+  }
+
+  const pending = incidents.filter(i => i.status === "PENDING").length;
+  const approved = incidents.filter(i => i.status === "APPROVED").length;
+  const rejected = incidents.filter(i => i.status === "REJECTED").length;
+
+  function formatDate(iso: string) {
+    return new Date(iso).toLocaleString("es-PE");
+  }
+
+  function mapStatus(status: string) {
+    if (status === "PENDING") return { label: "Pendiente de Revisión", color: "bg-amber-500/10 text-amber-500 border-amber-500/20" };
+    if (status === "APPROVED") return { label: "Infracción Confirmada", color: "bg-rose-500/10 text-rose-500 border-rose-500/20" };
+    return { label: "Rechazado / Falso positivo", color: "bg-slate-500/10 text-slate-400 border-slate-500/20" };
+  }
 
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
@@ -52,232 +67,226 @@ export default function DetectionPage() {
           </h1>
           <p className="text-sm text-muted">Monitoreo en tiempo real, validación de incidentes y registro de infractores.</p>
         </div>
+        <Button onClick={fetchIncidents} variant="outline" className="border-slate-700 text-slate-300">
+          Actualizar
+        </Button>
       </div>
 
+      {/* Stats */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <Card className="border-slate-800 bg-surface/50">
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-slate-400">Total Detecciones Hoy</CardTitle>
+            <CardTitle className="text-sm font-medium text-slate-400">Total Incidentes</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="flex items-center gap-2">
               <Eye className="h-5 w-5 text-blue-500" />
-              <span className="text-2xl font-bold text-foreground">{detections.length}</span>
+              <span className="text-2xl font-bold text-foreground">{incidents.length}</span>
             </div>
           </CardContent>
         </Card>
         <Card className="border-slate-800 bg-surface/50">
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-slate-400">Por Revisar (Pendientes)</CardTitle>
+            <CardTitle className="text-sm font-medium text-slate-400">Por Revisar</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="flex items-center gap-2">
               <AlertTriangle className="h-5 w-5 text-amber-500" />
-              <span className="text-2xl font-bold text-amber-500">{pendingViolations}</span>
+              <span className="text-2xl font-bold text-amber-500">{pending}</span>
             </div>
           </CardContent>
         </Card>
         <Card className="border-slate-800 bg-surface/50">
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-slate-400">Infracciones Confirmadas</CardTitle>
+            <CardTitle className="text-sm font-medium text-slate-400">Confirmadas</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="flex items-center gap-2">
               <ShieldAlert className="h-5 w-5 text-rose-500" />
-              <span className="text-2xl font-bold text-rose-500">{confirmedViolations}</span>
+              <span className="text-2xl font-bold text-rose-500">{approved}</span>
             </div>
           </CardContent>
         </Card>
         <Card className="border-slate-800 bg-surface/50">
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-slate-400">Cumplimiento Exitoso</CardTitle>
+            <CardTitle className="text-sm font-medium text-slate-400">Rechazadas</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="flex items-center gap-2">
               <CheckCircle className="h-5 w-5 text-emerald-500" />
-              <span className="text-2xl font-bold text-emerald-500">{compliant}</span>
+              <span className="text-2xl font-bold text-emerald-500">{rejected}</span>
             </div>
           </CardContent>
         </Card>
       </div>
 
-      {/* Camera feeds y tabla */}
-      <div className="grid gap-6 lg:grid-cols-3">
-        {/* Cam feeds - Columna Izquierda */}
-        <div className="space-y-6">
-          <Card className="border-slate-800 bg-surface/30 overflow-hidden">
-            <CardHeader className="bg-slate-900/50 py-3">
-              <CardTitle className="text-sm font-medium text-foreground flex items-center gap-2">
-                <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse"></span>
-                Cámara N-03 (Zona de Carga)
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="p-0">
-              <div className="relative aspect-video bg-slate-950 flex flex-col items-center justify-center text-slate-600 border-b border-slate-800">
-                <Camera className="h-8 w-8 mb-2 opacity-50" />
-                <span className="text-xs">Stream de IA Activo</span>
-                
-                {/* Mock bounding box overlay */}
-                <div className="absolute top-[20%] left-[30%] w-[40%] h-[60%] border-2 border-emerald-500/50 rounded-lg"></div>
-                <div className="absolute top-[20%] left-[30%] -mt-6 bg-emerald-500/80 text-[10px] text-white px-1.5 py-0.5 rounded shadow">
-                  EPP Ok 99%
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-          
-          <Card className="border-slate-800 bg-surface/30 overflow-hidden">
-            <CardHeader className="bg-slate-900/50 py-3">
-              <CardTitle className="text-sm font-medium text-foreground flex items-center gap-2">
-                <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse"></span>
-                Cámara E-07 (Línea de Ensamblaje)
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="p-0">
-              <div className="relative aspect-video bg-slate-950 flex flex-col items-center justify-center text-slate-600 border-b border-slate-800">
-                <Camera className="h-8 w-8 mb-2 opacity-50" />
-                <span className="text-xs">Stream de IA Activo</span>
-
-                {/* Mock bounding box overlay for violation */}
-                <div className="absolute top-[10%] left-[40%] w-[30%] h-[30%] border-2 border-rose-500/80 rounded-full border-dashed animate-pulse"></div>
-                <div className="absolute top-[10%] left-[40%] -mt-6 bg-rose-500 text-[10px] text-white px-1.5 py-0.5 rounded shadow font-bold">
-                  Sin Casco 97%
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Tabla de Registros - Columna Derecha (Ocupa 2 espacios) */}
-        <Card className="lg:col-span-2 border-slate-800 bg-surface/30 flex flex-col">
-          <CardHeader className="border-b border-slate-800 bg-slate-900/30">
-            <CardTitle className="text-foreground">Log de Incidentes y Detecciones</CardTitle>
-          </CardHeader>
-          <CardContent className="p-0 flex-1 overflow-auto">
+      {/* Tabla */}
+      <Card className="border-slate-800 bg-surface/30 flex flex-col">
+        <CardHeader className="border-b border-slate-800 bg-slate-900/30">
+          <CardTitle className="text-foreground">Log de Incidentes</CardTitle>
+        </CardHeader>
+        <CardContent className="p-0 flex-1 overflow-auto">
+          {loading ? (
+            <div className="flex items-center justify-center h-40 text-slate-500">Cargando incidentes...</div>
+          ) : incidents.length === 0 ? (
+            <div className="flex items-center justify-center h-40 text-slate-500">No hay incidentes registrados</div>
+          ) : (
             <table className="w-full text-sm">
               <thead className="bg-slate-900/50 sticky top-0 z-10">
                 <tr className="text-left text-slate-400">
-                  <th className="p-4 font-medium">Hora</th>
-                  <th className="p-4 font-medium">Ubicación</th>
-                  <th className="p-4 font-medium">Persona Detectada</th>
-                  <th className="p-4 font-medium">Infracción / Estado</th>
+                  <th className="p-4 font-medium">Fecha y Hora</th>
+                  <th className="p-4 font-medium">Cámara</th>
+                  <th className="p-4 font-medium">Infracciones</th>
+                  <th className="p-4 font-medium">Confianza</th>
+                  <th className="p-4 font-medium">Estado</th>
                   <th className="p-4 font-medium text-right">Acción</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-800/50">
-                {detections.map((d) => (
-                  <tr key={d.id} className="text-foreground hover:bg-slate-800/30 transition-colors">
-                    <td className="p-4 font-mono text-xs text-slate-500">{d.time}</td>
-                    <td className="p-4">
-                      <p className="font-medium text-slate-300">{d.camera}</p>
-                      <p className="text-[10px] text-slate-500">{d.area}</p>
-                    </td>
-                    <td className="p-4">
-                      <div className="flex items-center gap-2">
-                        <User className="h-4 w-4 text-slate-500" />
-                        <span className="font-medium text-slate-200">{d.employee}</span>
-                      </div>
-                    </td>
-                    <td className="p-4">
-                      <div className="flex flex-col items-start gap-1">
-                        <span className="font-medium">{d.detection} <span className="text-xs text-slate-500 font-mono">({d.confidence}%)</span></span>
-                        {d.status === "violation_pending" && (
-                          <Badge className="bg-amber-500/10 text-amber-500 border-amber-500/20">Pendiente de Revisión</Badge>
+                {incidents.map((incident) => {
+                  const st = mapStatus(incident.status);
+                  return (
+                    <tr key={incident.id} className="text-foreground hover:bg-slate-800/30 transition-colors">
+                      <td className="p-4 font-mono text-xs text-slate-400">{formatDate(incident.detectedAt)}</td>
+                      <td className="p-4">
+                        <div className="flex items-center gap-2">
+                          <Camera className="h-4 w-4 text-slate-500" />
+                          <span className="text-slate-300">{incident.cameraKey}</span>
+                        </div>
+                      </td>
+                      <td className="p-4">
+                        <div className="flex flex-wrap gap-1">
+                          {incident.violationTypes.map((v, i) => (
+                            <span key={i} className="text-xs bg-rose-500/10 text-rose-400 px-2 py-0.5 rounded border border-rose-500/20">
+                              {v}
+                            </span>
+                          ))}
+                        </div>
+                      </td>
+                      <td className="p-4 font-mono text-slate-300">
+                        {Math.round(incident.confidence * 100)}%
+                      </td>
+                      <td className="p-4">
+                        <Badge className={st.color}>{st.label}</Badge>
+                      </td>
+                      <td className="p-4 text-right">
+                        {incident.status === "PENDING" && (
+                          <Button
+                            size="sm"
+                            onClick={() => { setSelected(incident); setReviewNotes(""); }}
+                            className="bg-amber-600 hover:bg-amber-700 text-white h-8"
+                          >
+                            Revisar
+                          </Button>
                         )}
-                        {d.status === "violation_confirmed" && (
-                          <Badge className="bg-rose-500/10 text-rose-500 border-rose-500/20">Infracción Confirmada</Badge>
+                        {incident.status === "APPROVED" && (
+                          <span className="text-xs text-rose-500 px-2">Confirmado</span>
                         )}
-                        {d.status === "compliant" && (
-                          <Badge className="bg-emerald-500/10 text-emerald-500 border-emerald-500/20">Cumple Normativa</Badge>
+                        {incident.status === "REJECTED" && (
+                          <span className="text-xs text-slate-500 px-2">Rechazado</span>
                         )}
-                      </div>
-                    </td>
-                    <td className="p-4 text-right">
-                      {d.status === "violation_pending" && (
-                        <Button 
-                          size="sm" 
-                          onClick={() => setSelectedDetection(d)}
-                          className="bg-amber-600 hover:bg-amber-700 text-white h-8"
-                        >
-                          Revisar
-                        </Button>
-                      )}
-                      {d.status === "violation_confirmed" && (
-                        <Button size="sm" variant="outline" disabled className="border-rose-500/30 text-rose-500 h-8 bg-transparent opacity-50">
-                          Sancionado
-                        </Button>
-                      )}
-                      {d.status === "compliant" && (
-                        <span className="text-xs text-slate-500 px-2">-</span>
-                      )}
-                    </td>
-                  </tr>
-                ))}
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
-          </CardContent>
-        </Card>
-      </div>
+          )}
+        </CardContent>
+      </Card>
 
-      {/* Modal de Aprobación */}
-      {selectedDetection && (
+      {/* Modal de revisión */}
+      {selected && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4 animate-in fade-in">
-          <Card className="w-full max-w-md border-amber-500/30 bg-slate-900 shadow-2xl overflow-hidden relative">
+          <Card className="w-full max-w-lg border-amber-500/30 bg-slate-900 shadow-2xl overflow-hidden relative">
             <div className="absolute top-0 left-0 w-full h-1 bg-amber-500" />
             <CardHeader className="bg-slate-900 border-b border-slate-800 pb-4">
               <CardTitle className="text-lg text-white flex items-center gap-2">
                 <ShieldAlert className="h-5 w-5 text-amber-500" />
-                Revisión de Infracción de Seguridad
+                Revisión de Infracción
               </CardTitle>
             </CardHeader>
             <CardContent className="pt-6 space-y-4">
-              
+
               <div className="flex gap-4 items-start p-3 bg-amber-500/5 border border-amber-500/20 rounded-lg">
                 <AlertTriangle className="h-6 w-6 text-amber-500 shrink-0 mt-1" />
                 <div>
                   <h4 className="text-sm font-bold text-amber-400">Validación Requerida</h4>
                   <p className="text-xs text-slate-400 mt-1 leading-relaxed">
-                    La IA detectó una anomalía. Como Jefe de Seguridad, debes confirmar si procede la infracción para el expediente del trabajador.
+                    La IA detectó una anomalía. Confirma si procede la infracción.
                   </p>
                 </div>
               </div>
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <span className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Trabajador Detectado</span>
-                  <p className="text-sm font-medium text-slate-200">{selectedDetection.employee}</p>
+                  <span className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Cámara</span>
+                  <p className="text-sm text-slate-200">{selected.cameraKey}</p>
                 </div>
                 <div>
-                  <span className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Motivo / Incidente</span>
-                  <p className="text-sm font-medium text-rose-400">{selectedDetection.detection}</p>
+                  <span className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Confianza IA</span>
+                  <p className="text-sm font-mono text-slate-300">{Math.round(selected.confidence * 100)}%</p>
+                </div>
+                <div className="col-span-2">
+                  <span className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Infracciones detectadas</span>
+                  <div className="flex flex-wrap gap-1 mt-1">
+                    {selected.violationTypes.map((v, i) => (
+                      <span key={i} className="text-xs bg-rose-500/10 text-rose-400 px-2 py-1 rounded border border-rose-500/20">
+                        {v}
+                      </span>
+                    ))}
+                  </div>
                 </div>
                 <div>
-                  <span className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Ubicación y Hora</span>
-                  <p className="text-sm text-slate-300">{selectedDetection.area}</p>
-                  <p className="text-xs text-slate-500 font-mono mt-0.5">{selectedDetection.time}</p>
-                </div>
-                <div>
-                  <span className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Precisión de IA</span>
-                  <p className="text-sm font-mono text-slate-300">{selectedDetection.confidence}%</p>
+                  <span className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Fecha y hora</span>
+                  <p className="text-xs text-slate-400 font-mono">{formatDate(selected.detectedAt)}</p>
                 </div>
               </div>
 
-              {/* Mock Snapshot Placeholder */}
-              <div className="w-full h-32 bg-slate-950 rounded border border-slate-800 flex items-center justify-center text-slate-600 relative overflow-hidden">
-                <Camera className="h-6 w-6 absolute opacity-20" />
-                <span className="text-[10px] relative z-10 font-mono">Captura de cámara anexada</span>
+              {/* Imagen de evidencia desde S3 */}
+              <div>
+                <span className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-2">Evidencia fotográfica</span>
+                <div className="w-full h-48 bg-slate-950 rounded border border-slate-800 overflow-hidden">
+                  <img
+                    src={selected.evidenceUrl}
+                    alt="Evidencia de infracción"
+                    className="w-full h-full object-cover"
+                    onError={(e) => {
+                      (e.target as HTMLImageElement).style.display = "none";
+                    }}
+                  />
+                </div>
               </div>
 
-              <div className="flex justify-end gap-3 pt-4">
-                <Button variant="outline" onClick={() => setSelectedDetection(null)} className="border-slate-700 text-slate-300">
+              {/* Notas del revisor */}
+              <div>
+                <span className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-2">Notas (opcional)</span>
+                <textarea
+                  value={reviewNotes}
+                  onChange={(e) => setReviewNotes(e.target.value)}
+                  placeholder="Ej: Trabajador notificado, falso positivo por reflejo..."
+                  className="w-full bg-slate-800 border border-slate-700 rounded p-2 text-sm text-slate-300 placeholder-slate-600 resize-none h-20 focus:outline-none focus:border-amber-500/50"
+                />
+              </div>
+
+              <div className="flex justify-end gap-3 pt-2">
+                <Button variant="outline" onClick={() => setSelected(null)} className="border-slate-700 text-slate-300">
                   Cancelar
                 </Button>
-                <Button 
+                <Button
+                  variant="outline"
+                  onClick={() => handleReview("REJECTED")}
+                  className="border-slate-700 text-slate-300 gap-2 hover:border-slate-500"
+                >
+                  <X className="h-4 w-4" />
+                  Falso positivo
+                </Button>
+                <Button
                   className="bg-amber-600 hover:bg-amber-700 text-white gap-2"
-                  onClick={() => handleApprove(selectedDetection.id)}
+                  onClick={() => handleReview("APPROVED")}
                 >
                   <Check className="h-4 w-4" />
-                  Aprobar Infracción
+                  Confirmar infracción
                 </Button>
               </div>
             </CardContent>
