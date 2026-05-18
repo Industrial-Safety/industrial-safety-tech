@@ -6,7 +6,6 @@ import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 import {
   LayoutDashboard,
-  ClipboardList,
   Camera,
   User,
   ChevronLeft,
@@ -16,7 +15,7 @@ import {
   LogOut,
   Menu,
   X,
-  Gavel
+  Gavel,
 } from "lucide-react";
 import { Avatar } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -26,7 +25,6 @@ import { useProfileAvatar } from "@/hooks/use-profile-avatar";
 
 const jefeNavItems = [
   { href: "/jefe", label: "Dashboard General", icon: LayoutDashboard },
-  { href: "/jefe/requests", label: "Solicitudes EPP", icon: ClipboardList },
   { href: "/jefe/appeals", label: "Apelaciones", icon: Gavel },
   { href: "/jefe/detection", label: "Detección IA", icon: Camera },
   { href: "/jefe/support", label: "Soporte", icon: Headphones },

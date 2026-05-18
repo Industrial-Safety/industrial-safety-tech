@@ -3,7 +3,7 @@
 import React from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { ShieldCheck, Activity, Users, Video, Settings, FileText, Menu, X, LogOut, Headphones } from "lucide-react"
+import { ShieldCheck, Activity, Users, Video, Settings, GraduationCap, Menu, X, LogOut, Headphones } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { signOut, useSession } from "next-auth/react"
@@ -13,7 +13,7 @@ const navigation = [
   { name: "Staff & Accesos", href: "/admin/staff", icon: Users },
   { name: "Hardware", href: "/admin/hardware", icon: Video },
   { name: "Integraciones", href: "/admin/settings", icon: Settings },
-  { name: "Auditoría y Logs", href: "/admin/logs", icon: FileText },
+  { name: "Asignar Cursos", href: "/admin/course-assignment", icon: GraduationCap },
   { name: "Soporte", href: "/admin/support", icon: Headphones },
 ]
 

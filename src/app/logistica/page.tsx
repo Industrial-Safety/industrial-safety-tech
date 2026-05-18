@@ -36,8 +36,10 @@ export default function LogisticaDashboard() {
   const [selectedItems, setSelectedItems] = useState<{ itemId: number; cantidad: number }[]>([]);
   const [entregaLoading, setEntregaLoading] = useState(false);
   const [entregaError, setEntregaError] = useState("");
-  const [inventory, setInventory] = useState([]);
-  const [approvedRequests, setApprovedRequests] = useState([]);
+  interface InventoryItem { id: number; [key: string]: any; }
+  interface PurchaseRequest { id: string | number; codigoSolicitud: string; fecha: string; categoria: string; cantidad: number; proveedor: string; costoEstimado: number; justificacion: string; estado: string; [key: string]: any; }
+  const [inventory, setInventory] = useState<InventoryItem[]>([]);
+  const [approvedRequests, setApprovedRequests] = useState<PurchaseRequest[]>([]);
 
   const [stats, setStats] = useState({
     totalSolicitudes: 0,
@@ -80,7 +82,7 @@ const loadApprovedRequests = async () => {
   }
 };
 
-  const INVENTORY_LIMITS = {
+  const INVENTORY_LIMITS: Record<string, number> = {
     "Guantes de Nitrilo": 500,
     "Cascos de Seguridad": 200,
     "Lentes Protectores": 300,
@@ -296,7 +298,7 @@ const loadApprovedRequests = async () => {
             </TableHeader>
             <TableBody>
               {Object.values(
-                approvedRequests.reduce((acc, item) => {
+                approvedRequests.reduce<Record<string, { categoria: string; cantidad: number; pendientes: number; aprobadas: number; rechazadas: number }>>((acc, item) => {
                   if (!item.categoria) return acc;
 
                   if (!acc[item.categoria]) {
@@ -552,11 +554,11 @@ const loadApprovedRequests = async () => {
                   )}
                 </label>
                 <div className="border border-slate-700 rounded-lg overflow-hidden max-h-52 overflow-y-auto divide-y divide-slate-800/60">
-                  {inventory.length === 0 ? (
+                  {approvedRequests.length === 0 ? (
                     <p className="text-xs text-slate-500 p-4 text-center">No hay ítems en inventario.</p>
                   ) : (
-                    inventory.map((item: any) => {
-                      const disponible = item.stock ?? 0;
+                    approvedRequests.map((item: any) => {
+                      const disponible = item.cantidad ?? 0;
                       const hasStock = disponible > 0;
                       const sel = selectedItems.find(s => s.itemId === item.id);
                       return (
@@ -574,10 +576,10 @@ const loadApprovedRequests = async () => {
                           </div>
                           <div className="flex-1 min-w-0">
                             <p className={`text-sm font-medium truncate ${hasStock ? "text-slate-200" : "text-slate-500"}`}>
-                              {item.descripcion}
+                              {item.categoria}
                             </p>
                             <p className="text-xs text-slate-500">
-                              {item.codigo} · Stock: <span className={hasStock ? "text-emerald-400" : "text-rose-400"}>{disponible}</span> uds.
+                              {item.codigoSolicitud} · Stock: <span className={hasStock ? "text-emerald-400" : "text-rose-400"}>{disponible}</span> uds.
                               {!hasStock && " · Sin stock"}
                             </p>
                           </div>

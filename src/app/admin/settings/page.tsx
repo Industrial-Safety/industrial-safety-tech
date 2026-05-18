@@ -5,22 +5,15 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Switch } from "@/components/ui/switch"
-import { KeyRound, Mail, Save, Server, Shield, MessageCircle } from "lucide-react"
+import { KeyRound, Mail, Server, Shield, MessageCircle } from "lucide-react"
 
 export default function SettingsPage() {
   return (
     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
       
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Configuración de Integraciones</h1>
-          <p className="text-muted">Gestiona claves de API, almacenamiento y servicios de notificación.</p>
-        </div>
-        
-        <Button className="gap-2 shrink-0">
-          <Save className="w-4 h-4" />
-          Guardar Cambios
-        </Button>
+      <div>
+        <h1 className="text-3xl font-bold tracking-tight">Configuración de Integraciones</h1>
+        <p className="text-muted">Gestiona claves de API, almacenamiento y servicios de notificación.</p>
       </div>
 
       <div className="grid gap-6 md:grid-cols-2">

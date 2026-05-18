@@ -1,115 +1,215 @@
 "use client";
 
-import { useState } from "react";
-import { Avatar } from "@/components/ui/avatar";
+import { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Search, Send, Headphones, UserCircle, MoreVertical, Paperclip, ChevronLeft, MessageSquare, LifeBuoy } from "lucide-react";
+import { Search, Send, Headphones, MoreVertical, ChevronLeft, MessageSquare, Loader2, LifeBuoy } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useSession } from "next-auth/react";
 
-// Mock Contacts Base para Jefe de Seguridad
-const CONTACTS = [
-  {
-    id: "c-support",
-    name: "Soporte Técnico Nivel 2",
-    role: "Administración de Sistemas",
-    avatar: "",
-    isSupport: true,
-    lastMsg: "El firmware de la cámara 3 ha sido actualizado correctamente.",
-    time: "10:30 AM",
-    unread: 1,
-    online: true,
-    messages: [
-      { id: 1, sender: "me", text: "Hola, la cámara de detección IA de la zona de carga está perdiendo conexión intermitentemente.", time: "10:15 AM" },
-      { id: 2, sender: "them", text: "Hola Jefe. Estamos revisando los logs de red de esa zona.", time: "10:25 AM" },
-      { id: 3, sender: "them", text: "El firmware de la cámara 3 ha sido actualizado correctamente. Ya no deberías tener cortes.", time: "10:30 AM" }
-    ]
-  },
-  {
-    id: "c-inst-carlos",
-    name: "Carlos Mendoza",
-    role: "Supervisor de Planta",
-    avatar: "https://images.unsplash.com/photo-1560250097-0b93528c311a?w=150&h=150&fit=crop&crop=faces",
-    isSupport: false,
-    lastMsg: "Los arneses de altura ya fueron entregados al equipo B.",
-    time: "Ayer",
-    unread: 0,
-    online: false,
-    messages: [
-      { id: 1, sender: "me", text: "Carlos, por favor asegúrate de repartir el EPP asignado hoy en la mañana.", time: "09:00 AM" },
-      { id: 2, sender: "them", text: "Recibido. Me encargo ahora mismo.", time: "09:15 AM" },
-      { id: 3, sender: "them", text: "Los arneses de altura ya fueron entregados al equipo B.", time: "05:00 PM" }
-    ]
-  },
-  {
-    id: "c-inst-elena",
-    name: "Dra. Elena Silva",
-    role: "Instructora de SSO",
-    avatar: "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=150&h=150&fit=crop&crop=faces",
-    isSupport: false,
-    lastMsg: "El curso de espacios confinados ya está disponible para revisión.",
-    time: "Lun",
-    unread: 0,
-    online: true,
-    messages: [
-      { id: 1, sender: "them", text: "El curso de espacios confinados ya está disponible para revisión.", time: "10:00 AM" }
-    ]
-  }
-];
+interface ChatMessage {
+  id: string;
+  conversationId: string;
+  senderId: string;
+  senderName: string;
+  senderRole: string;
+  content: string;
+  createdAt: string;
+  read: boolean;
+}
+
+interface ConversationResponse {
+  id: string;
+  type: "INSTRUCTOR" | "SUPPORT";
+  studentId: string;
+  otherPartyId: string;
+  otherPartyName: string;
+  otherPartyRole: string;
+  lastMessageAt?: string;
+  lastMessagePreview?: string;
+  unreadForStudent: number;
+}
+
+interface ContactItem {
+  id: string;
+  name: string;
+  role: string;
+  type: "SUPPORT";
+  conversationId: string | null;
+  lastMsg: string;
+  lastMessageAt: string | null;
+  unread: number;
+}
+
+const SUPPORT_PARTY_ID = "IS-SUPPORT";
 
 export default function JefeSupportPage() {
-  const [search, setSearch] = useState("");
-  const [activeChatId, setActiveChatId] = useState(CONTACTS[0].id);
-  const [mobileView, setMobileView] = useState<"list" | "chat">("list");
+  const { data: session } = useSession();
+  const userId = (session as any)?.keycloakId as string | undefined;
+  const userName = session?.user?.name ?? "Jefe de Seguridad";
+
+  const [contacts, setContacts] = useState<ContactItem[]>([]);
+  const [loadingContacts, setLoadingContacts] = useState(true);
+  const [activeContactId, setActiveContactId] = useState<string | null>(null);
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [loadingMessages, setLoadingMessages] = useState(false);
   const [inputText, setInputText] = useState("");
-  
-  const [contacts, setContacts] = useState(CONTACTS);
+  const [sending, setSending] = useState(false);
+  const [search, setSearch] = useState("");
+  const [mobileView, setMobileView] = useState<"list" | "chat">("list");
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  const activeContact = contacts.find(c => c.id === activeChatId);
+  useEffect(() => {
+    if (!userId) return;
+    loadContacts(userId);
+  }, [userId]);
 
-  const handleSendMessage = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!inputText.trim() || !activeContact) return;
-
-    // Simulate sending message locally
-    const newMessage = {
-      id: Date.now(),
-      sender: "me",
-      text: inputText,
-      time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-    };
-
-    setContacts(contacts.map(c => {
-      if (c.id === activeChatId) {
-        return {
-          ...c,
-          messages: [...c.messages, newMessage],
-          lastMsg: inputText,
-          time: "Ahora"
-        };
-      }
-      return c;
-    }));
-    setInputText("");
+  const loadContacts = async (uid: string) => {
+    setLoadingContacts(true);
+    try {
+      const convRes = await fetch(`/api/proxy/chat/conversations/student/${uid}`);
+      const conversations: ConversationResponse[] = convRes.ok ? await convRes.json() : [];
+      const supportConv = conversations.find((c) => c.type === "SUPPORT");
+      const supportContact: ContactItem = {
+        id: SUPPORT_PARTY_ID,
+        name: "Soporte Técnico IS",
+        role: "Equipo de Soporte",
+        type: "SUPPORT",
+        conversationId: supportConv?.id ?? null,
+        lastMsg: supportConv?.lastMessagePreview ?? "¿En qué podemos ayudarte?",
+        lastMessageAt: supportConv?.lastMessageAt ?? null,
+        unread: supportConv?.unreadForStudent ?? 0,
+      };
+      setContacts([supportContact]);
+    } catch (e) {
+      console.error("Error cargando contactos:", e);
+    } finally {
+      setLoadingContacts(false);
+    }
   };
 
-  const filteredContacts = contacts.filter(c => c.name.toLowerCase().includes(search.toLowerCase()) || c.role.toLowerCase().includes(search.toLowerCase()));
+  const openChat = async (contact: ContactItem) => {
+    if (!userId) return;
+    stopPolling();
+    setActiveContactId(contact.id);
+    setMobileView("chat");
+    setMessages([]);
+    setLoadingMessages(true);
+    try {
+      let convId = contact.conversationId;
+      if (!convId) {
+        const body = {
+          type: contact.type,
+          studentId: userId,
+          studentName: userName,
+          studentAvatarUrl: "",
+          otherPartyId: contact.id,
+          otherPartyName: contact.name,
+          otherPartyRole: contact.role,
+          otherPartyAvatarUrl: "",
+          courseId: null,
+          courseName: null,
+        };
+        const res = await fetch("/api/proxy/chat/conversations", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(body),
+        });
+        if (!res.ok) return;
+        const conv: ConversationResponse = await res.json();
+        convId = conv.id;
+        setContacts((prev) => prev.map((c) => c.id === contact.id ? { ...c, conversationId: convId } : c));
+      }
+      await fetchMessages(convId, userId);
+      startPolling(convId, userId);
+    } catch (e) {
+      console.error("Error abriendo chat:", e);
+    } finally {
+      setLoadingMessages(false);
+    }
+  };
+
+  const fetchMessages = async (convId: string, readerId: string) => {
+    const res = await fetch(`/api/proxy/chat/conversations/${convId}/messages`);
+    if (!res.ok) return;
+    const msgs: ChatMessage[] = await res.json();
+    setMessages(msgs);
+    fetch(`/api/proxy/chat/conversations/${convId}/read?readerId=${readerId}`, { method: "PATCH" });
+    setContacts((prev) => prev.map((c) => c.conversationId === convId ? { ...c, unread: 0 } : c));
+  };
+
+  const startPolling = (convId: string, readerId: string) => {
+    pollRef.current = setInterval(() => fetchMessages(convId, readerId), 3000);
+  };
+  const stopPolling = () => {
+    if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null; }
+  };
+  useEffect(() => () => stopPolling(), []);
+  useEffect(() => { messagesEndRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages]);
+
+  const handleSendMessage = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const activeContact = contacts.find((c) => c.id === activeContactId);
+    if (!inputText.trim() || !userId || !activeContact?.conversationId) return;
+    setSending(true);
+    const text = inputText.trim();
+    setInputText("");
+    try {
+      const res = await fetch(`/api/proxy/chat/conversations/${activeContact.conversationId}/messages`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          senderId: userId,
+          senderName: userName,
+          senderRole: "JEFE_SEGURIDAD",
+          senderAvatarUrl: "",
+          content: text,
+        }),
+      });
+      if (!res.ok) { setInputText(text); return; }
+      const newMsg: ChatMessage = await res.json();
+      setMessages((prev) => [...prev, newMsg]);
+      setContacts((prev) => prev.map((c) =>
+        c.id === activeContactId ? { ...c, lastMsg: text, lastMessageAt: newMsg.createdAt } : c
+      ));
+    } catch {
+      setInputText(text);
+    } finally {
+      setSending(false);
+    }
+  };
+
+  const activeContact = contacts.find((c) => c.id === activeContactId) ?? null;
+  const filteredContacts = contacts.filter((c) =>
+    c.name.toLowerCase().includes(search.toLowerCase()) || c.role.toLowerCase().includes(search.toLowerCase())
+  );
+
+  const formatTime = (iso: string | null) => {
+    if (!iso) return "";
+    const d = new Date(iso);
+    const diffDays = Math.floor((Date.now() - d.getTime()) / 86400000);
+    if (diffDays === 0) return d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+    if (diffDays === 1) return "Ayer";
+    if (diffDays < 7) return d.toLocaleDateString("es-ES", { weekday: "short" });
+    return d.toLocaleDateString("es-ES", { day: "numeric", month: "short" });
+  };
 
   return (
-    <div className="flex flex-col h-full space-y-4 animate-in fade-in duration-500">
+    <div className="flex flex-col space-y-4 animate-in fade-in duration-500">
       <div>
         <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
           <LifeBuoy className="h-6 w-6 text-amber-500" />
           Soporte y Comunicación
         </h1>
-        <p className="text-sm text-muted">Centro de comunicación en tiempo real con Soporte Técnico, Instructores y Supervisores.</p>
+        <p className="text-sm text-muted">Canal de soporte técnico en tiempo real.</p>
       </div>
 
       <div className="h-[calc(100vh-14rem)] bg-background flex flex-col md:flex-row gap-6 rounded-xl overflow-hidden border border-slate-800">
-        
-        {/* Sidebar: Contacts List */}
+
+        {/* Contacts list */}
         <Card className={cn(
           "w-full md:w-80 lg:w-96 flex-col shrink-0 border-none rounded-none border-r border-slate-800 bg-surface/50 overflow-hidden h-full",
           mobileView === "chat" ? "hidden md:flex" : "flex"
@@ -117,8 +217,8 @@ export default function JefeSupportPage() {
           <div className="p-4 border-b border-slate-800 space-y-4">
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted" />
-              <Input 
-                placeholder="Buscar chats..." 
+              <Input
+                placeholder="Buscar chats..."
                 className="pl-9 bg-slate-900 border-slate-800 focus-visible:ring-amber-500"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
@@ -127,90 +227,66 @@ export default function JefeSupportPage() {
           </div>
 
           <div className="flex-1 overflow-y-auto p-2 space-y-1">
-            {filteredContacts.map(contact => (
-              <button
-                key={contact.id}
-                onClick={() => {
-                  setActiveChatId(contact.id);
-                  setMobileView("chat");
-                }}
-                className={cn(
-                  "w-full text-left p-3 flex gap-3 rounded-lg transition-colors border",
-                  activeChatId === contact.id 
-                    ? "bg-amber-500/10 border-amber-500/30" 
-                    : "bg-transparent border-transparent hover:bg-surface-secondary"
-                )}
-              >
-                <div className="relative shrink-0">
-                  {contact.isSupport ? (
+            {loadingContacts ? (
+              <div className="flex items-center justify-center h-24 text-muted">
+                <Loader2 className="h-5 w-5 animate-spin mr-2" /> Cargando...
+              </div>
+            ) : (
+              filteredContacts.map((contact) => (
+                <button
+                  key={contact.id}
+                  onClick={() => openChat(contact)}
+                  className={cn(
+                    "w-full text-left p-3 flex gap-3 rounded-lg transition-colors border",
+                    activeContactId === contact.id
+                      ? "bg-amber-500/10 border-amber-500/30"
+                      : "bg-transparent border-transparent hover:bg-surface-secondary"
+                  )}
+                >
+                  <div className="relative shrink-0">
                     <div className="h-10 w-10 flex items-center justify-center rounded-full bg-blue-500 text-white">
                       <Headphones className="h-5 w-5" />
                     </div>
-                  ) : (
-                    <Avatar src={contact.avatar} fallback={<UserCircle className="h-6 w-6 text-slate-400" />} />
-                  )}
-                  {contact.online && (
-                    <span className="absolute bottom-0 right-0 w-3 h-3 bg-emerald-500 border-2 border-slate-900 rounded-full"></span>
-                  )}
-                </div>
-                <div className="flex-1 min-w-0 overflow-hidden text-sm">
-                  <div className="flex justify-between items-center mb-0.5">
-                    <span className={cn("font-bold truncate", contact.isSupport && "text-blue-400", activeChatId === contact.id && !contact.isSupport && "text-amber-500")}>
-                      {contact.name}
-                    </span>
-                    <span className="text-[10px] text-muted whitespace-nowrap">{contact.time}</span>
+                    <span className="absolute bottom-0 right-0 w-3 h-3 bg-emerald-500 border-2 border-slate-900 rounded-full" />
                   </div>
-                  <div className="flex justify-between items-center gap-2">
-                    <p className="text-xs text-muted truncate">{contact.lastMsg}</p>
-                    {contact.unread > 0 && (
-                      <Badge className="bg-rose-500 hover:bg-rose-600 h-5 w-5 rounded-full p-0 flex items-center justify-center shrink-0 text-[10px] text-white border-0">
-                        {contact.unread}
-                      </Badge>
-                    )}
+                  <div className="flex-1 min-w-0 overflow-hidden text-sm">
+                    <div className="flex justify-between items-center mb-0.5">
+                      <span className="font-bold truncate text-blue-400">{contact.name}</span>
+                      <span className="text-[10px] text-muted whitespace-nowrap">{formatTime(contact.lastMessageAt)}</span>
+                    </div>
+                    <div className="flex justify-between items-center gap-2">
+                      <p className="text-xs text-muted truncate">{contact.lastMsg}</p>
+                      {contact.unread > 0 && (
+                        <Badge className="bg-rose-500 h-5 w-5 rounded-full p-0 flex items-center justify-center shrink-0 text-[10px] text-white border-0">
+                          {contact.unread}
+                        </Badge>
+                      )}
+                    </div>
                   </div>
-                </div>
-              </button>
-            ))}
-            {filteredContacts.length === 0 && (
-              <div className="p-4 text-center text-sm text-muted">No se encontraron chats</div>
+                </button>
+              ))
             )}
           </div>
         </Card>
 
-        {/* Main Chat Area */}
+        {/* Chat area */}
         <Card className={cn(
           "flex-1 flex-col border-none rounded-none bg-surface/30 overflow-hidden h-[calc(100vh-14rem)] md:h-full",
           mobileView === "list" ? "hidden md:flex" : "flex"
         )}>
           {activeContact ? (
             <>
-              {/* Chat Header */}
               <div className="h-16 shrink-0 border-b border-slate-800 flex items-center justify-between px-4 md:px-6 bg-slate-900/50">
                 <div className="flex items-center gap-2 md:gap-3">
-                  <Button 
-                    variant="ghost" 
-                    size="icon" 
-                    className="md:hidden shrink-0 h-8 w-8 text-slate-400 hover:text-white"
-                    onClick={() => setMobileView("list")}
-                  >
+                  <Button variant="ghost" size="icon" className="md:hidden shrink-0 h-8 w-8 text-slate-400 hover:text-white"
+                    onClick={() => { setMobileView("list"); stopPolling(); }}>
                     <ChevronLeft className="h-5 w-5" />
                   </Button>
-                  <div className="relative">
-                    {activeContact.isSupport ? (
-                      <div className="h-10 w-10 flex items-center justify-center rounded-full bg-blue-500 text-white">
-                        <Headphones className="h-5 w-5" />
-                      </div>
-                    ) : (
-                      <Avatar src={activeContact.avatar} fallback={<UserCircle className="h-6 w-6 text-slate-400" />} />
-                    )}
-                    {activeContact.online && (
-                      <span className="absolute bottom-0 right-0 w-3 h-3 bg-emerald-500 border-2 border-slate-900 rounded-full"></span>
-                    )}
+                  <div className="h-10 w-10 flex items-center justify-center rounded-full bg-blue-500 text-white">
+                    <Headphones className="h-5 w-5" />
                   </div>
                   <div>
-                    <h3 className={cn("font-bold text-sm", activeContact.isSupport ? "text-blue-400" : "text-white")}>
-                      {activeContact.name}
-                    </h3>
+                    <h3 className="font-bold text-sm text-blue-400">{activeContact.name}</h3>
                     <p className="text-xs text-slate-400">{activeContact.role}</p>
                   </div>
                 </div>
@@ -219,56 +295,58 @@ export default function JefeSupportPage() {
                 </Button>
               </div>
 
-              {/* Chat Messages */}
-              <div className="flex-1 overflow-y-auto p-6 space-y-4 flex flex-col relative w-full">
-                {activeContact.messages.map((msg, idx) => {
-                  const isMe = msg.sender === "me";
-                  return (
-                    <div key={idx} className={cn("flex max-w-[80%] flex-col", isMe ? "self-end items-end" : "self-start items-start")}>
-                      <div 
-                        className={cn(
+              <div className="flex-1 overflow-y-auto p-6 space-y-4 flex flex-col w-full">
+                {loadingMessages ? (
+                  <div className="flex items-center justify-center h-full text-muted">
+                    <Loader2 className="h-5 w-5 animate-spin mr-2" /> Cargando mensajes...
+                  </div>
+                ) : messages.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center h-full text-muted gap-2">
+                    <MessageSquare className="h-10 w-10 text-slate-700" />
+                    <p className="text-sm">Inicia la conversación</p>
+                  </div>
+                ) : (
+                  messages.map((msg, idx) => {
+                    const isMe = msg.senderId === userId;
+                    return (
+                      <div key={idx} className={cn("flex max-w-[80%] flex-col", isMe ? "self-end items-end" : "self-start items-start")}>
+                        <div className={cn(
                           "p-3 rounded-2xl text-sm shadow-sm",
-                          isMe 
-                            ? "bg-amber-600 text-white rounded-tr-none" 
-                            : "bg-slate-800 text-slate-200 border border-slate-700 rounded-tl-none"
-                        )}
-                      >
-                        {msg.text}
+                          isMe ? "bg-amber-600 text-white rounded-tr-none" : "bg-slate-800 text-slate-200 border border-slate-700 rounded-tl-none"
+                        )}>
+                          {msg.content}
+                        </div>
+                        <span className="text-[10px] text-slate-500 mt-1 px-1">
+                          {formatTime(msg.createdAt)} {isMe && <span className="text-amber-500">✓✓</span>}
+                        </span>
                       </div>
-                      <span className="text-[10px] text-slate-500 mt-1 px-1 flex items-center gap-1">
-                        {msg.time} {isMe && <span className="text-amber-500">✓✓</span>}
-                      </span>
-                    </div>
-                  );
-                })}
+                    );
+                  })
+                )}
+                <div ref={messagesEndRef} />
               </div>
 
-              {/* Chat Input */}
               <div className="p-4 border-t border-slate-800 bg-slate-900/50">
-                <form onSubmit={handleSendMessage} className="flex gap-2 relative">
-                  <Button type="button" variant="ghost" size="icon" className="shrink-0 text-slate-400 hover:text-white">
-                    <Paperclip className="h-5 w-5" />
-                  </Button>
-                  <Input 
+                <form onSubmit={handleSendMessage} className="flex gap-2">
+                  <Input
                     placeholder="Escribe un mensaje..."
                     className="flex-1 bg-slate-800 border-slate-700 focus-visible:ring-amber-500"
                     value={inputText}
                     onChange={(e) => setInputText(e.target.value)}
                   />
-                  <Button type="submit" size="icon" className="shrink-0 bg-amber-600 hover:bg-amber-700 text-white" disabled={!inputText.trim()}>
-                    <Send className="h-4 w-4" />
+                  <Button type="submit" size="icon" className="shrink-0 bg-amber-600 hover:bg-amber-700 text-white" disabled={!inputText.trim() || sending}>
+                    {sending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
                   </Button>
                 </form>
               </div>
             </>
           ) : (
-             <div className="flex-1 flex flex-col items-center justify-center text-slate-500">
-                <MessageSquare className="h-12 w-12 text-slate-700 mb-4" />
-                <p>Selecciona un chat para empezar a conversar</p>
-             </div>
+            <div className="flex-1 flex flex-col items-center justify-center text-slate-500">
+              <MessageSquare className="h-12 w-12 text-slate-700 mb-4" />
+              <p>Selecciona un chat para empezar</p>
+            </div>
           )}
         </Card>
-
       </div>
     </div>
   );

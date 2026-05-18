@@ -1,23 +1,40 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
+import { useSession } from "next-auth/react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Camera, Eye, AlertTriangle, CheckCircle, User, ShieldAlert, Check, X } from "lucide-react";
-import { getIncidents, reviewIncident, Incident } from "../../../services/incidentService";
+import { Input } from "@/components/ui/input";
+import { Camera, Eye, AlertTriangle, CheckCircle, ShieldAlert, Check, X, Search, UserCheck, Loader2 } from "lucide-react";
+import { toast } from "sonner";
+import { getIncidents, reviewIncident, getWorkers, Incident, WorkerOption } from "../../../services/incidentService";
 
 export default function DetectionPage() {
+  const { data: session } = useSession();
+  const reviewerId = (session as any)?.keycloakId as string | undefined;
+
   const [incidents, setIncidents] = useState<Incident[]>([]);
   const [selected, setSelected] = useState<Incident | null>(null);
   const [loading, setLoading] = useState(true);
   const [reviewNotes, setReviewNotes] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+
+  // Trabajadores para el combo box del modal de aprobación
+  const [workers, setWorkers] = useState<WorkerOption[]>([]);
+  const [workerSearch, setWorkerSearch] = useState("");
+  const [selectedWorker, setSelectedWorker] = useState<WorkerOption | null>(null);
 
   // Carga incidentes del backend
   useEffect(() => {
     fetchIncidents();
     const interval = setInterval(fetchIncidents, 10000); // refresca cada 10s
     return () => clearInterval(interval);
+  }, []);
+
+  // Carga la lista de trabajadores una vez
+  useEffect(() => {
+    getWorkers().then(setWorkers).catch(() => setWorkers([]));
   }, []);
 
   async function fetchIncidents() {
@@ -31,15 +48,62 @@ export default function DetectionPage() {
     }
   }
 
+  const filteredWorkers = useMemo(() => {
+    const q = workerSearch.trim().toLowerCase();
+    if (!q) return workers;
+    return workers.filter((w) =>
+      `${w.name} ${w.lastName}`.toLowerCase().includes(q) ||
+      (w.dni ?? "").toLowerCase().includes(q) ||
+      (w.email ?? "").toLowerCase().includes(q)
+    );
+  }, [workers, workerSearch]);
+
+  function openReview(incident: Incident) {
+    setSelected(incident);
+    setReviewNotes("");
+    setSelectedWorker(null);
+    setWorkerSearch("");
+  }
+
   async function handleReview(status: "APPROVED" | "REJECTED") {
     if (!selected) return;
+    if (!reviewerId) {
+      toast.error("No se pudo identificar al revisor. Inicia sesión nuevamente.");
+      return;
+    }
+    if (status === "APPROVED" && !selectedWorker) {
+      toast.error("Selecciona el trabajador infractor antes de confirmar.");
+      return;
+    }
+    if (status === "APPROVED" && !selectedWorker?.keycloakId?.trim()) {
+      toast.error(
+        `"${selectedWorker?.name} ${selectedWorker?.lastName}" no tiene keycloakId sincronizado en la BD. No se puede asignar la infracción.`
+      );
+      return;
+    }
+    setSubmitting(true);
     try {
-      await reviewIncident(selected.id, status, reviewNotes || (status === "APPROVED" ? "Infracción confirmada" : "Falso positivo"));
+      await reviewIncident(
+        selected.id,
+        status,
+        reviewNotes || (status === "APPROVED" ? "Infracción confirmada" : "Falso positivo"),
+        reviewerId,
+        status === "APPROVED" ? selectedWorker?.keycloakId : undefined
+      );
+      toast.success(
+        status === "APPROVED"
+          ? `Infracción asignada a ${selectedWorker?.name} ${selectedWorker?.lastName}`
+          : "Incidente marcado como falso positivo"
+      );
       setSelected(null);
       setReviewNotes("");
+      setSelectedWorker(null);
       fetchIncidents();
-    } catch (e) {
+    } catch (e: any) {
       console.error("Error al revisar:", e);
+      toast.error(e?.message ? `Error: ${e.message}` : "Error al registrar la revisión");
+    } finally {
+      setSubmitting(false);
     }
   }
 
@@ -173,7 +237,7 @@ export default function DetectionPage() {
                         {incident.status === "PENDING" && (
                           <Button
                             size="sm"
-                            onClick={() => { setSelected(incident); setReviewNotes(""); }}
+                            onClick={() => openReview(incident)}
                             className="bg-amber-600 hover:bg-amber-700 text-white h-8"
                           >
                             Revisar
@@ -258,6 +322,73 @@ export default function DetectionPage() {
                 </div>
               </div>
 
+              {/* Combo box buscable: trabajador infractor */}
+              <div>
+                <span className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-2">
+                  Trabajador infractor <span className="text-amber-500">*</span>
+                </span>
+                {selectedWorker ? (
+                  <div className="flex items-center justify-between gap-3 bg-amber-500/5 border border-amber-500/30 rounded p-2.5">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <UserCheck className="h-4 w-4 text-amber-500 shrink-0" />
+                      <div className="min-w-0">
+                        <p className="text-sm text-slate-200 truncate">
+                          {selectedWorker.name} {selectedWorker.lastName}
+                        </p>
+                        <p className="text-[10px] text-slate-500 truncate">
+                          {selectedWorker.dni ? `DNI: ${selectedWorker.dni}` : selectedWorker.email}
+                        </p>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => { setSelectedWorker(null); setWorkerSearch(""); }}
+                      className="text-slate-500 hover:text-rose-400 shrink-0"
+                    >
+                      <X className="h-4 w-4" />
+                    </button>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    <div className="relative">
+                      <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500" />
+                      <Input
+                        value={workerSearch}
+                        onChange={(e) => setWorkerSearch(e.target.value)}
+                        placeholder="Buscar por nombre, DNI o correo..."
+                        className="pl-9 bg-slate-800 border-slate-700 text-sm text-slate-300 h-9 focus-visible:ring-amber-500"
+                      />
+                    </div>
+                    <div className="max-h-40 overflow-y-auto rounded border border-slate-800 divide-y divide-slate-800/60">
+                      {workers.length === 0 ? (
+                        <p className="text-xs text-slate-500 p-3 text-center">No se encontraron trabajadores registrados.</p>
+                      ) : filteredWorkers.length === 0 ? (
+                        <p className="text-xs text-slate-500 p-3 text-center">Sin coincidencias para "{workerSearch}".</p>
+                      ) : (
+                        filteredWorkers.map((w) => (
+                          <button
+                            key={w.id}
+                            type="button"
+                            onClick={() => setSelectedWorker(w)}
+                            className="w-full text-left flex items-center gap-2 p-2.5 hover:bg-slate-800/60 transition-colors"
+                          >
+                            <div className="h-7 w-7 rounded-full bg-amber-500/15 text-amber-500 flex items-center justify-center text-[10px] font-bold shrink-0">
+                              {(w.name?.[0] ?? "?")}{(w.lastName?.[0] ?? "")}
+                            </div>
+                            <div className="min-w-0">
+                              <p className="text-sm text-slate-200 truncate">{w.name} {w.lastName}</p>
+                              <p className="text-[10px] text-slate-500 truncate">
+                                {w.dni ? `DNI: ${w.dni}` : ""}{w.dni && w.email ? " · " : ""}{w.email}
+                              </p>
+                            </div>
+                          </button>
+                        ))
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+
               {/* Notas del revisor */}
               <div>
                 <span className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-2">Notas (opcional)</span>
@@ -270,11 +401,12 @@ export default function DetectionPage() {
               </div>
 
               <div className="flex justify-end gap-3 pt-2">
-                <Button variant="outline" onClick={() => setSelected(null)} className="border-slate-700 text-slate-300">
+                <Button variant="outline" disabled={submitting} onClick={() => setSelected(null)} className="border-slate-700 text-slate-300">
                   Cancelar
                 </Button>
                 <Button
                   variant="outline"
+                  disabled={submitting}
                   onClick={() => handleReview("REJECTED")}
                   className="border-slate-700 text-slate-300 gap-2 hover:border-slate-500"
                 >
@@ -283,9 +415,10 @@ export default function DetectionPage() {
                 </Button>
                 <Button
                   className="bg-amber-600 hover:bg-amber-700 text-white gap-2"
+                  disabled={submitting || !selectedWorker}
                   onClick={() => handleReview("APPROVED")}
                 >
-                  <Check className="h-4 w-4" />
+                  {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
                   Confirmar infracción
                 </Button>
               </div>

@@ -77,7 +77,7 @@ export default function StaffAndAccessPage() {
   }
 
   const [currentPage, setCurrentPage] = useState(1)
-  const itemsPerPage = 5
+  const itemsPerPage = 10
 
   // Reset page when filters change
   useEffect(() => { setCurrentPage(1) }, [roleFilter, nameFilter])
@@ -556,27 +556,27 @@ export default function StaffAndAccessPage() {
               </div>
 
               {/* Controles de Paginación */}
-              {totalPages > 1 && (
-                <div className="flex items-center justify-between pt-4">
-                  <p className="text-xs text-muted">
-                    Mostrando <span className="text-foreground font-medium">{filteredStaff.length}</span> de <span className="text-foreground font-medium">{allFiltered.length}</span> registros
-                  </p>
+              <div className="flex items-center justify-between pt-4">
+                <p className="text-xs text-muted">
+                  Mostrando <span className="text-foreground font-medium">{filteredStaff.length}</span> de <span className="text-foreground font-medium">{allFiltered.length}</span> registros
+                </p>
+                {totalPages > 1 && (
                   <div className="flex items-center gap-2">
-                    <Button 
-                      variant="outline" 
-                      size="icon" 
+                    <Button
+                      variant="outline"
+                      size="icon"
                       className="h-8 w-8 border-border hover:bg-surface-secondary"
                       onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
                       disabled={currentPage === 1}
                     >
                       <ChevronLeft className="h-4 w-4" />
                     </Button>
-                    
+
                     <div className="flex items-center gap-1">
                       {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
                         <Button
                           key={page}
-                          variant={currentPage === page ? "default" : "ghost"}
+                          variant={currentPage === page ? "primary" : "ghost"}
                           size="icon"
                           className="h-8 w-8 text-xs"
                           onClick={() => setCurrentPage(page)}
@@ -586,9 +586,9 @@ export default function StaffAndAccessPage() {
                       ))}
                     </div>
 
-                    <Button 
-                      variant="outline" 
-                      size="icon" 
+                    <Button
+                      variant="outline"
+                      size="icon"
                       className="h-8 w-8 border-border hover:bg-surface-secondary"
                       onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
                       disabled={currentPage === totalPages}
@@ -596,8 +596,8 @@ export default function StaffAndAccessPage() {
                       <ChevronRight className="h-4 w-4" />
                     </Button>
                   </div>
-                </div>
-              )}
+                )}
+              </div>
             </CardContent>
           </Card>
         </div>

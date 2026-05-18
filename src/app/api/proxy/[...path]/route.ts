@@ -28,7 +28,7 @@ function buildTargetUrl(req: NextRequest, path: string) {
     return queryString ? `${base}?${queryString}` : base
 }
 
-export async function GET(req: NextRequest, { params }: { params: { path: string[] } }) {
+export async function GET(req: NextRequest, { params }: { params: Promise<{ path: string[] }> }) {
     const session = await getSession()
     if (invalidSession(session)) return NextResponse.json({ error: "No session" }, { status: 401 })
 
@@ -36,11 +36,15 @@ export async function GET(req: NextRequest, { params }: { params: { path: string
     const path = resolvedParams.path.join("/")
     const targetUrl = buildTargetUrl(req, path)
 
+    const getHeaders: Record<string, string> = {
+        "Authorization": `Bearer ${(session as any).accessToken}`
+    }
+    const getUserId = req.headers.get("x-user-id")
+    if (getUserId) getHeaders["X-User-Id"] = getUserId
+
     try {
         const response = await fetch(targetUrl, {
-            headers: {
-                "Authorization": `Bearer ${(session as any).accessToken}`
-            }
+            headers: getHeaders
         })
         const data = await safeJson(response)
         return NextResponse.json(data, { status: response.status })
@@ -50,7 +54,7 @@ export async function GET(req: NextRequest, { params }: { params: { path: string
     }
 }
 
-export async function POST(req: NextRequest, { params }: { params: { path: string[] } }) {
+export async function POST(req: NextRequest, { params }: { params: Promise<{ path: string[] }> }) {
     const resolvedParams = await params
     const path = resolvedParams.path.join("/")
 
@@ -92,6 +96,8 @@ export async function POST(req: NextRequest, { params }: { params: { path: strin
     if (session && (session as any).accessToken) {
         postHeaders["Authorization"] = `Bearer ${(session as any).accessToken}`
     }
+    const postUserId = req.headers.get("x-user-id")
+    if (postUserId) postHeaders["X-User-Id"] = postUserId
 
     try {
         const response = await fetch(targetUrl, {
@@ -107,7 +113,7 @@ export async function POST(req: NextRequest, { params }: { params: { path: strin
     }
 }
 
-export async function PUT(req: NextRequest, { params }: { params: { path: string[] } }) {
+export async function PUT(req: NextRequest, { params }: { params: Promise<{ path: string[] }> }) {
     const session = await getSession()
     if (invalidSession(session)) return NextResponse.json({ error: "No session" }, { status: 401 })
 
@@ -137,7 +143,7 @@ export async function PUT(req: NextRequest, { params }: { params: { path: string
     }
 }
 
-export async function PATCH(req: NextRequest, { params }: { params: { path: string[] } }) {
+export async function PATCH(req: NextRequest, { params }: { params: Promise<{ path: string[] }> }) {
     const session = await getSession()
     if (invalidSession(session)) return NextResponse.json({ error: "No session" }, { status: 401 })
 
@@ -150,13 +156,17 @@ export async function PATCH(req: NextRequest, { params }: { params: { path: stri
         body = await req.json()
     } catch (e) {}
 
+    const patchHeaders: Record<string, string> = {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${(session as any).accessToken}`
+    }
+    const patchUserId = req.headers.get("x-user-id")
+    if (patchUserId) patchHeaders["X-User-Id"] = patchUserId
+
     try {
         const response = await fetch(targetUrl, {
             method: "PATCH",
-            headers: {
-                "Content-Type": "application/json",
-                "Authorization": `Bearer ${(session as any).accessToken}`
-            },
+            headers: patchHeaders,
             body: JSON.stringify(body)
         })
         if (response.status === 204) {
@@ -170,7 +180,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { path: stri
     }
 }
 
-export async function DELETE(req: NextRequest, { params }: { params: { path: string[] } }) {
+export async function DELETE(req: NextRequest, { params }: { params: Promise<{ path: string[] }> }) {
     const session = await getSession()
     if (invalidSession(session)) return NextResponse.json({ error: "No session" }, { status: 401 })
 

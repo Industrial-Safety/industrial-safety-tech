@@ -10,6 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Camera, Save, User, Mail, Phone, Shield, CheckCircle2, HardHat, Link, Download, QrCode } from "lucide-react";
 import { toast } from "sonner";
 import QRCode from "react-qr-code";
+import { useProfileAvatar } from "@/hooks/use-profile-avatar";
 
 interface TrabajadorProfileClientProps {
   initialData: {
@@ -26,6 +27,7 @@ interface TrabajadorProfileClientProps {
 
 export default function TrabajadorProfileClient({ initialData, accessToken }: TrabajadorProfileClientProps) {
   const router = useRouter();
+  const { updateAvatar } = useProfileAvatar(initialData.email);
   const [isSaving, setIsSaving] = useState(false);
   const [formData, setFormData] = useState({ name: initialData.name, phone: initialData.phone, avatarUrl: initialData.avatarUrl ?? "" });
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
@@ -80,7 +82,7 @@ export default function TrabajadorProfileClient({ initialData, accessToken }: Tr
 
       if (avatarFile) {
         const presignRes = await fetch(
-          `/api/storage/upload-url?fileName=${encodeURIComponent("users/profile-photos/" + avatarFile.name)}&contentType=${encodeURIComponent(avatarFile.type)}`
+          `/api/proxy/storage/upload-url?fileName=${encodeURIComponent("users/profile-photos/" + avatarFile.name)}&contentType=${encodeURIComponent(avatarFile.type)}`
         );
         if (presignRes.ok) {
           const { uploadUrl, fileUrl } = await presignRes.json();
@@ -93,14 +95,14 @@ export default function TrabajadorProfileClient({ initialData, accessToken }: Tr
         }
       }
 
-      const res = await fetch(`/api/users/${initialData.id}`, {
+      const res = await fetch(`/api/proxy/users/${initialData.id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
       });
 
       if (res.ok) {
-        if (body.urlPhoto) localStorage.setItem("custom_avatar", body.urlPhoto);
+        if (body.urlPhoto) updateAvatar(body.urlPhoto);
         toast.success("Perfil actualizado correctamente");
         router.refresh();
       } else {

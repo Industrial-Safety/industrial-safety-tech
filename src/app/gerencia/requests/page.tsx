@@ -42,48 +42,16 @@ interface PriceRequest {
 }
 
 interface LogisticsRequest {
-  id: string;
-  requestedBy: string;
-  requestedByEmail: string;
-  category: string;
-  quantity: number;
-  estimatedCost: number;
-  supplier: string;
-  description: string;
-  status: "pending" | "approved" | "rejected";
-  submittedDate: string;
-  gerenciaResponse?: string;
-  resolvedDate?: string;
+  id: number;
+  codigoSolicitud: string;
+  fecha: string;
+  categoria: string;
+  cantidad: number;
+  proveedor: string;
+  costoEstimado: number;
+  justificacion: string;
+  estado: "PENDIENTE" | "APROBADO" | "RECHAZADO";
 }
-
-const MOCK_LOGISTICS: LogisticsRequest[] = [
-  {
-    id: "LOG-2026-145",
-    requestedBy: "Carlos Ruiz",
-    requestedByEmail: "carlos.ruiz@prevenciontech.com",
-    category: "Guantes de Nitrilo",
-    quantity: 500,
-    estimatedCost: 1250.00,
-    supplier: "3M Perú S.A.",
-    description: "Reposición urgente de guantes de nitrilo. Stock actual en nivel crítico (10 unidades).",
-    status: "pending",
-    submittedDate: "2026-04-24"
-  },
-  {
-    id: "LOG-2026-144",
-    requestedBy: "Carlos Ruiz",
-    requestedByEmail: "carlos.ruiz@prevenciontech.com",
-    category: "Cascos de Seguridad Tipo 1",
-    quantity: 150,
-    estimatedCost: 3400.00,
-    supplier: "MSA Safety",
-    description: "Reposición trimestral de cascos para el personal de planta.",
-    status: "approved",
-    submittedDate: "2026-04-22",
-    gerenciaResponse: "Aprobado. Coordinar entrega con almacén.",
-    resolvedDate: "2026-04-23"
-  },
-];
 
 export default function GerenciaRequestsPage() {
   const { data: session } = useSession();
@@ -92,7 +60,11 @@ export default function GerenciaRequestsPage() {
   const [reviewModal, setReviewModal] = useState<PriceRequest | null>(null);
   const [reviewComment, setReviewComment] = useState("");
   const [submitting, setSubmitting] = useState(false);
-  const [logisticsRequests] = useState<LogisticsRequest[]>(MOCK_LOGISTICS);
+
+  const [logisticsRequests, setLogisticsRequests] = useState<LogisticsRequest[]>([]);
+  const [logisticsLoading, setLogisticsLoading] = useState(true);
+  const [logisticsModal, setLogisticsModal] = useState<LogisticsRequest | null>(null);
+  const [logisticsSubmitting, setLogisticsSubmitting] = useState(false);
 
   useEffect(() => {
     fetch("/api/proxy/course/price-requests")
@@ -100,6 +72,14 @@ export default function GerenciaRequestsPage() {
       .then((data) => setPriceRequests(Array.isArray(data) ? data : []))
       .catch(() => setPriceRequests([]))
       .finally(() => setLoading(false));
+  }, []);
+
+  useEffect(() => {
+    fetch("/api/proxy/purchase/requests")
+      .then((r) => (r.ok ? r.json() : []))
+      .then((data) => setLogisticsRequests(Array.isArray(data) ? data : []))
+      .catch(() => setLogisticsRequests([]))
+      .finally(() => setLogisticsLoading(false));
   }, []);
 
   const handleReview = async (approved: boolean) => {
@@ -129,6 +109,27 @@ export default function GerenciaRequestsPage() {
     }
   };
 
+  const handleLogisticsReview = async (approved: boolean) => {
+    if (!logisticsModal) return;
+    setLogisticsSubmitting(true);
+    try {
+      const res = await fetch(`/api/proxy/purchase/requests/${logisticsModal.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ estado: approved ? "APROBADO" : "RECHAZADO" }),
+      });
+      if (!res.ok) throw new Error();
+      const updated: LogisticsRequest = await res.json();
+      setLogisticsRequests((prev) => prev.map((r) => (r.id === updated.id ? updated : r)));
+      setLogisticsModal(null);
+      toast.success(approved ? "Solicitud aprobada" : "Solicitud rechazada");
+    } catch {
+      toast.error("No se pudo procesar la solicitud");
+    } finally {
+      setLogisticsSubmitting(false);
+    }
+  };
+
   const statusBadge = (status: PriceRequest["status"] | "pending" | "approved" | "rejected") => {
     const s = status.toUpperCase();
     if (s === "PENDING") return <Badge className="bg-warning text-black"><Clock className="h-3 w-3 mr-1" />Pendiente</Badge>;
@@ -138,8 +139,14 @@ export default function GerenciaRequestsPage() {
 
   const pendingPrice = priceRequests.filter((r) => r.status === "PENDING");
   const resolvedPrice = priceRequests.filter((r) => r.status !== "PENDING");
-  const pendingLogistics = logisticsRequests.filter((r) => r.status === "pending");
-  const resolvedLogistics = logisticsRequests.filter((r) => r.status !== "pending");
+  const pendingLogistics = logisticsRequests.filter((r) => r.estado === "PENDIENTE");
+  const resolvedLogistics = logisticsRequests.filter((r) => r.estado !== "PENDIENTE");
+
+  const logisticsBadge = (estado: LogisticsRequest["estado"]) => {
+    if (estado === "PENDIENTE") return <Badge className="bg-warning text-black"><Clock className="h-3 w-3 mr-1" />Pendiente</Badge>;
+    if (estado === "APROBADO") return <Badge className="bg-success text-white"><CheckCircle className="h-3 w-3 mr-1" />Aprobada</Badge>;
+    return <Badge className="bg-danger text-white"><XCircle className="h-3 w-3 mr-1" />Rechazada</Badge>;
+  };
 
   return (
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
@@ -263,13 +270,13 @@ export default function GerenciaRequestsPage() {
           {[
             { label: "Total", value: logisticsRequests.length, color: "text-rose-500" },
             { label: "Pendientes", value: pendingLogistics.length, color: "text-warning" },
-            { label: "Aprobadas", value: logisticsRequests.filter((r) => r.status === "approved").length, color: "text-success" },
-            { label: "Rechazadas", value: logisticsRequests.filter((r) => r.status === "rejected").length, color: "text-danger" },
+            { label: "Aprobadas", value: logisticsRequests.filter((r) => r.estado === "APROBADO").length, color: "text-success" },
+            { label: "Rechazadas", value: logisticsRequests.filter((r) => r.estado === "RECHAZADO").length, color: "text-danger" },
           ].map(({ label, value, color }) => (
             <Card key={label} className="bg-surface/40 border-border">
               <CardContent className="p-4">
                 <p className="text-xs text-muted">{label}</p>
-                <p className={`text-2xl font-bold ${color}`}>{value}</p>
+                <p className={`text-2xl font-bold ${color}`}>{logisticsLoading ? "—" : value}</p>
               </CardContent>
             </Card>
           ))}
@@ -279,14 +286,14 @@ export default function GerenciaRequestsPage() {
           <Clock className="h-4 w-4 text-warning" /> Pendientes
         </h3>
         {pendingLogistics.length === 0 ? (
-          <Card className="bg-surface/40 border-border">
+          <Card className="bg-surface/40 border-border mb-6">
             <CardContent className="p-8 text-center">
               <CheckCircle className="h-12 w-12 text-success mx-auto mb-3" />
               <p className="font-semibold">No hay solicitudes de Logística pendientes</p>
             </CardContent>
           </Card>
         ) : (
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 mb-6">
             {pendingLogistics.map((req) => (
               <Card key={req.id} className="bg-surface/60 border-border">
                 <CardContent className="p-5">
@@ -296,42 +303,175 @@ export default function GerenciaRequestsPage() {
                         <Truck className="h-6 w-6 text-rose-500" />
                       </div>
                       <div>
-                        <h3 className="font-semibold text-sm">{req.category}</h3>
-                        <p className="text-xs text-muted">{req.id}</p>
-                        <p className="text-xs text-muted">Por: {req.requestedBy}</p>
+                        <h3 className="font-semibold text-sm">{req.categoria}</h3>
+                        <p className="text-xs text-muted">{req.codigoSolicitud}</p>
                       </div>
                     </div>
-                    {statusBadge(req.status)}
+                    {logisticsBadge(req.estado)}
                   </div>
                   <div className="space-y-1 mb-4 text-sm">
                     <div className="flex items-center gap-2">
                       <Package className="h-4 w-4 text-muted" />
                       <span className="text-muted">Cantidad:</span>
-                      <span className="font-medium">{req.quantity} uds</span>
+                      <span className="font-medium">{req.cantidad} uds</span>
                     </div>
                     <div className="flex items-center gap-2">
                       <Percent className="h-4 w-4 text-muted" />
                       <span className="text-muted">Costo:</span>
-                      <span className="font-medium text-rose-400">${req.estimatedCost.toFixed(2)}</span>
+                      <span className="font-medium text-rose-400">S/ {req.costoEstimado?.toFixed(2)}</span>
                     </div>
                     <div className="flex items-center gap-2">
                       <Calendar className="h-4 w-4 text-muted" />
                       <span className="text-muted">Enviada:</span>
-                      <span className="font-medium">{new Date(req.submittedDate).toLocaleDateString("es-ES")}</span>
+                      <span className="font-medium">{req.fecha ? new Date(req.fecha).toLocaleDateString("es-ES") : "—"}</span>
                     </div>
                   </div>
-                  <p className="text-xs text-muted line-clamp-2 mb-4">{req.description}</p>
-                  <Button variant="outline" size="sm" className="w-full border-rose-500/30 text-rose-500 hover:bg-rose-500/10">
-                    <Eye className="h-4 w-4 mr-2" /> Ver (módulo logístico en desarrollo)
+                  <p className="text-xs text-muted line-clamp-2 mb-4">{req.justificacion}</p>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="w-full border-rose-500/30 text-rose-500 hover:bg-rose-500/10"
+                    onClick={() => setLogisticsModal(req)}
+                  >
+                    <Eye className="h-4 w-4 mr-2" /> Revisar Solicitud
                   </Button>
                 </CardContent>
               </Card>
             ))}
           </div>
         )}
+
+        {resolvedLogistics.length > 0 && (
+          <>
+            <h3 className="text-base font-semibold mb-3 flex items-center gap-2 text-muted">
+              <CheckCircle className="h-4 w-4" /> Resueltas
+            </h3>
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {resolvedLogistics.map((req) => (
+                <Card key={req.id} className="bg-surface/30 border-border opacity-80">
+                  <CardContent className="p-4">
+                    <div className="flex items-center justify-between mb-2">
+                      <div>
+                        <p className="font-semibold text-sm">{req.categoria}</p>
+                        <p className="text-xs text-muted">{req.codigoSolicitud} · {req.cantidad} uds · S/ {req.costoEstimado?.toFixed(2)}</p>
+                      </div>
+                      {logisticsBadge(req.estado)}
+                    </div>
+                    <div className="flex items-center justify-between text-xs text-muted">
+                      <span>{req.fecha ? new Date(req.fecha).toLocaleDateString("es-ES") : ""}</span>
+                      <Button variant="ghost" size="sm" className="h-6 text-xs" onClick={() => setLogisticsModal(req)}>
+                        <Eye className="h-3 w-3 mr-1" /> Ver
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          </>
+        )}
       </section>
 
-      {/* Review Modal */}
+      {/* Logistics Review Modal */}
+      {logisticsModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/80 backdrop-blur-sm">
+          <div className="bg-surface border border-border shadow-2xl rounded-xl w-full max-w-lg overflow-hidden max-h-[90vh] overflow-y-auto">
+            <div className="p-5 border-b border-border flex items-center justify-between sticky top-0 bg-surface">
+              <div className="flex items-center gap-3">
+                <div className={`h-10 w-10 rounded-lg flex items-center justify-center ${
+                  logisticsModal.estado === "PENDIENTE" ? "bg-warning/10" :
+                  logisticsModal.estado === "APROBADO" ? "bg-success/10" : "bg-danger/10"
+                }`}>
+                  {logisticsModal.estado === "PENDIENTE" ? <Clock className="h-5 w-5 text-warning" /> :
+                   logisticsModal.estado === "APROBADO" ? <CheckCircle className="h-5 w-5 text-success" /> :
+                   <XCircle className="h-5 w-5 text-danger" />}
+                </div>
+                <div>
+                  <h3 className="font-bold text-lg">Solicitud de Compra</h3>
+                  <p className="text-xs text-muted">{logisticsModal.codigoSolicitud}</p>
+                </div>
+              </div>
+              <button onClick={() => setLogisticsModal(null)} className="text-muted hover:text-foreground p-2 rounded-lg hover:bg-surface-secondary">
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <div className="p-6 space-y-5">
+              <div className="flex items-center justify-between p-4 bg-surface-secondary/30 rounded-lg border border-border">
+                <div className="flex items-center gap-3">
+                  <div className="h-10 w-10 rounded-full bg-rose-500/10 flex items-center justify-center">
+                    <Truck className="h-5 w-5 text-rose-500" />
+                  </div>
+                  <div>
+                    <p className="font-bold text-sm">{logisticsModal.categoria}</p>
+                    <p className="text-xs text-muted">Proveedor: {logisticsModal.proveedor || "—"}</p>
+                    <p className="text-xs text-muted">{logisticsModal.fecha ? new Date(logisticsModal.fecha).toLocaleDateString("es-ES") : "—"}</p>
+                  </div>
+                </div>
+                <div className="ml-auto">{logisticsBadge(logisticsModal.estado)}</div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4 p-4 bg-surface-secondary/30 rounded-lg border border-border">
+                <div>
+                  <p className="text-xs text-muted mb-1">Cantidad</p>
+                  <p className="text-lg font-bold">{logisticsModal.cantidad} uds</p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted mb-1">Costo estimado</p>
+                  <p className="text-lg font-bold text-rose-400">S/ {logisticsModal.costoEstimado?.toFixed(2)}</p>
+                </div>
+              </div>
+
+              <div>
+                <h4 className="text-sm font-semibold mb-2 flex items-center gap-2">
+                  <MessageSquare className="h-4 w-4 text-rose-500" /> Justificación
+                </h4>
+                <div className="p-4 bg-surface-secondary/30 rounded-lg border border-border">
+                  <p className="text-sm">{logisticsModal.justificacion || "Sin justificación."}</p>
+                </div>
+              </div>
+
+              {logisticsModal.estado === "PENDIENTE" ? (
+                <div className="space-y-3">
+                  <h4 className="text-sm font-semibold flex items-center gap-2">
+                    <AlertCircle className="h-4 w-4 text-rose-500" /> Decisión de Gerencia
+                  </h4>
+                  <div className="flex gap-3">
+                    <Button
+                      className="flex-1 bg-success hover:bg-success/90 text-white"
+                      disabled={logisticsSubmitting}
+                      onClick={() => handleLogisticsReview(true)}
+                    >
+                      <CheckCircle className="h-4 w-4 mr-2" />
+                      {logisticsSubmitting ? "..." : "Aprobar"}
+                    </Button>
+                    <Button
+                      className="flex-1 bg-danger hover:bg-danger/90 text-white"
+                      disabled={logisticsSubmitting}
+                      onClick={() => handleLogisticsReview(false)}
+                    >
+                      <XCircle className="h-4 w-4 mr-2" />
+                      {logisticsSubmitting ? "..." : "Rechazar"}
+                    </Button>
+                  </div>
+                  <p className="text-xs text-muted">Al aprobar, logística podrá proceder con la compra y asignación de EPP.</p>
+                </div>
+              ) : (
+                <div className={`p-4 rounded-lg border ${logisticsModal.estado === "APROBADO" ? "bg-success/5 border-success/20" : "bg-danger/5 border-danger/20"}`}>
+                  <p className="text-sm font-semibold">
+                    {logisticsModal.estado === "APROBADO" ? "APROBADA por Gerencia" : "RECHAZADA por Gerencia"}
+                  </p>
+                </div>
+              )}
+            </div>
+
+            <div className="p-4 border-t border-border flex justify-end">
+              <Button variant="ghost" onClick={() => setLogisticsModal(null)}>Cerrar</Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Price Review Modal */}
       {reviewModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/80 backdrop-blur-sm">
           <div className="bg-surface border border-border shadow-2xl rounded-xl w-full max-w-lg overflow-hidden max-h-[90vh] overflow-y-auto">
