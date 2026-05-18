@@ -3,22 +3,12 @@
 import { useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
 import { Card, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
-  Download, Share2, Award, Calendar, CheckCircle, ExternalLink,
+  Share2, Award, CheckCircle, ExternalLink,
   Copy, Mail, MessageCircle, Link as LinkIcon, Globe, Loader2,
 } from "lucide-react";
-
-interface Certificate {
-  id: number;
-  courseId: string;
-  courseName: string;
-  instructorName: string;
-  score: number;
-  issuedAt: string;
-  certificateUrl: string;
-}
+import { CertificateCard, type Certificate } from "@/components/ui/certificate-card";
 
 export default function TrabajadorCertificatesPage() {
   const { data: session } = useSession();
@@ -59,6 +49,7 @@ export default function TrabajadorCertificatesPage() {
         )}
       </div>
 
+      {/* Stats */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {[
           { label: "Total Certificados", value: certificates.length, icon: Award, color: "text-primary", bg: "bg-primary/10" },
@@ -90,56 +81,36 @@ export default function TrabajadorCertificatesPage() {
           <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
             <CheckCircle className="h-5 w-5 text-success" /> Certificados Obtenidos
           </h2>
-          <div className="grid gap-4 md:grid-cols-2">
+          <div className="grid gap-6 md:grid-cols-2">
             {certificates.map(cert => (
-              <Card key={cert.id} className="bg-surface/60 border-border overflow-hidden hover:border-primary/50 transition-colors">
-                <CardContent className="p-5">
-                  <div className="flex items-start justify-between mb-3">
-                    <div className="flex items-center gap-3">
-                      <div className="h-12 w-12 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
-                        <Award className="h-6 w-6 text-primary" />
-                      </div>
-                      <div>
-                        <h3 className="font-bold text-base leading-tight">{cert.courseName}</h3>
-                        <p className="text-xs text-muted mt-0.5">{cert.instructorName}</p>
-                      </div>
-                    </div>
-                    <Badge className="bg-success/10 text-success border-success/30 shrink-0">{cert.score}%</Badge>
-                  </div>
-                  <div className="flex items-center gap-2 text-xs text-muted mb-4">
-                    <Calendar className="h-3.5 w-3.5" />
-                    <span>Expedido el {formatDate(cert.issuedAt)}</span>
-                  </div>
-                  <div className="flex gap-2">
-                    <Button variant="outline" size="sm" className="flex-1 border-primary/30 text-primary hover:bg-primary/10" onClick={() => handleDownload(cert)}>
-                      <Download className="h-4 w-4 mr-1.5" /> Descargar PDF
-                    </Button>
-                    <Button variant="outline" size="sm" className="flex-1 border-primary/30 text-primary hover:bg-primary/10" onClick={() => { setShareModal(cert); setCopied(false); }}>
-                      <Share2 className="h-4 w-4 mr-1.5" /> Compartir
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
+              <CertificateCard
+                key={cert.id}
+                cert={cert}
+                onDownload={handleDownload}
+                onShare={(c) => { setShareModal(c); setCopied(false); }}
+                formatDate={formatDate}
+              />
             ))}
           </div>
         </section>
       )}
 
       {shareModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/80 backdrop-blur-sm">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/80 backdrop-blur-sm animate-in fade-in">
           <div className="bg-surface border border-border shadow-2xl rounded-xl w-full max-w-md overflow-hidden animate-in zoom-in-95">
             <div className="p-5 border-b border-border flex items-center justify-between">
               <div className="flex items-center gap-2"><Share2 className="h-5 w-5 text-primary" /><h3 className="font-bold">Compartir Certificado</h3></div>
               <button onClick={() => setShareModal(null)} className="text-muted hover:text-foreground">✕</button>
             </div>
             <div className="p-5 space-y-4">
-              <div className="text-center p-4 bg-gradient-to-br from-primary/5 to-primary/10 rounded-lg border border-primary/20">
-                <Award className="h-12 w-12 text-primary mx-auto mb-2" />
-                <p className="font-semibold text-sm">{shareModal.courseName}</p>
+              <div className="text-center p-4 bg-gradient-to-br from-amber-950/40 to-amber-900/20 rounded-lg border border-amber-800/30">
+                <Award className="h-10 w-10 text-amber-400 mx-auto mb-2" />
+                <p className="font-bold text-amber-300 text-sm">{shareModal.studentName}</p>
+                <p className="font-semibold text-sm mt-0.5">{shareModal.courseName}</p>
                 <p className="text-xs text-muted mt-1">Puntaje: {shareModal.score}% · {formatDate(shareModal.issuedAt)}</p>
               </div>
               <div className="space-y-2">
-                <label className="text-xs font-semibold">Enlace de descarga</label>
+                <label className="text-xs font-semibold">Enlace de descarga (válido 7 días)</label>
                 <div className="flex gap-2">
                   <input readOnly value={shareModal.certificateUrl}
                     className="flex-1 px-3 py-2 text-xs bg-surface-secondary border border-border rounded-md text-muted truncate" />

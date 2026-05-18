@@ -162,7 +162,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
                     const dbUser = await res.json();
                     dbId = dbUser.id;
                     if (dbUser.keycloakId) resolvedKeycloakId = dbUser.keycloakId;
-                    token.dbName = `${dbUser.name} ${dbUser.lastName}`;
+                    token.dbName = [dbUser.name, dbUser.lastName].filter(Boolean).join(" ");
                     if (res.status === 201) {
                         isNewUser = true;
                         newUserEmail = user.email ?? undefined;
@@ -220,7 +220,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
                         dbId = dbUser.id;
                         if (dbUser.keycloakId) resolvedKeycloakId = dbUser.keycloakId;
                         mustChangePassword = dbUser.mustChangePassword === true;
-                        token.dbName = `${dbUser.name} ${dbUser.lastName}`;
+                        token.dbName = [dbUser.name, dbUser.lastName].filter(Boolean).join(" ");
                     }
                     console.log("DEBUG [Auth]: Login credentials. ID DB:", dbId, "keycloakId:", resolvedKeycloakId, "mustChangePassword:", mustChangePassword, "roles:", roles);
                 }

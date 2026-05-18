@@ -59,7 +59,7 @@ export default function TrabajadorLearningPage() {
       const built: CourseItem[] = details.filter(Boolean).map((d: any) => {
         const courseId = d._id ?? d.id;
         const item = itemMap.get(courseId);
-        const progress = parseInt(localStorage.getItem(`progress_${courseId}`) ?? "0", 10);
+        const progress = parseInt(localStorage.getItem(`progress_${userId}_${courseId}`) ?? "0", 10);
         return {
           courseId,
           courseName: item?.courseName ?? d.title,

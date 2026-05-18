@@ -1,153 +1,215 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { 
-  ShieldCheck, 
-  Search, 
-  Filter,
-  CheckCircle,
-  XCircle,
-  AlertTriangle,
-  Download
-} from "lucide-react";
-import { Input } from "@/components/ui/input";
+import { ShieldCheck, AlertTriangle, CheckCircle, XCircle, Clock, Loader2, ShieldAlert } from "lucide-react";
 
-// Mock Data
-const COMPLIANCE_RECORDS = [
-  { id: "EMP-001", name: "Carlos Mendoza", dept: "Mantenimiento", course: "100%", epp: "Aprobado", status: "compliant", date: "10 Abr 2026" },
-  { id: "EMP-045", name: "Ana Torres", dept: "Operaciones B", course: "60%", epp: "Pendiente", status: "non-compliant", date: "15 Abr 2026" },
-  { id: "EMP-112", name: "Luis Ruiz", dept: "Almacén Central", course: "100%", epp: "Rechazado", status: "warning", date: "20 Abr 2026" },
-  { id: "EMP-089", name: "Sofía Castro", dept: "Logística", course: "100%", epp: "Aprobado", status: "compliant", date: "12 Abr 2026" },
-  { id: "EMP-204", name: "Miguel Rojas", dept: "Operaciones B", course: "40%", epp: "Aprobado", status: "non-compliant", date: "22 Abr 2026" },
-];
+interface Incident {
+  id: string;
+  violationType: string;
+  status: string;
+  workerName?: string;
+  workerDni?: string;
+  createdAt?: string;
+  timestamp?: string;
+  appealStatus?: string;
+}
+
+const VIOLATION_LABELS: Record<string, string> = {
+  NO_CASCO: "Sin Casco",
+  NO_CHALECO: "Sin Chaleco/Vest",
+  NO_GUANTES: "Sin Guantes",
+  NO_LENTES: "Sin Lentes",
+  NO_BOTAS: "Sin Botas",
+  ZONA_PROHIBIDA: "Zona Prohibida",
+  DISTANCIA_INSEGURA: "Distancia Insegura",
+};
+
+function normalizeStatus(s: string) { return s?.toUpperCase() ?? ""; }
 
 export default function CompliancePage() {
+  const [incidents, setIncidents] = useState<Incident[]>([]);
+  const [total, setTotal] = useState<number | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetch("/api/proxy/incidents?size=200")
+      .then(r => r.ok ? r.json() : { content: [], totalElements: 0 })
+      .then(data => {
+        const list: Incident[] = data?.content ?? (Array.isArray(data) ? data : []);
+        setIncidents(list);
+        setTotal(data?.totalElements ?? list.length);
+      })
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, []);
+
+  const confirmed = incidents.filter(i => normalizeStatus(i.status) === "APPROVED");
+  const pending   = incidents.filter(i => normalizeStatus(i.status) === "PENDING");
+  const discarded = incidents.filter(i => normalizeStatus(i.status) === "REJECTED");
+  const appealed  = incidents.filter(i => normalizeStatus(i.status) === "APPEALED");
+
+  const fmt = (iso?: string) => iso ? new Date(iso).toLocaleDateString("es-ES", { day: "numeric", month: "short", year: "numeric" }) : "—";
+
   return (
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500 pb-8">
-      
+
       <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold tracking-tight mb-2 flex items-center gap-2">
-            <ShieldCheck className="h-8 w-8 text-emerald-500" /> Auditoría de Cumplimiento
+            <ShieldCheck className="h-8 w-8 text-emerald-500" /> Auditoría de Seguridad
           </h1>
-          <p className="text-muted">Estado legal y formativo del personal operativo e inspectores.</p>
+          <p className="text-muted">Estado de las infracciones registradas por el sistema de IA y el jefe de seguridad.</p>
         </div>
-        <Button className="bg-emerald-600 hover:bg-emerald-700 text-white gap-2 shadow-lg shadow-emerald-900/20">
-          <Download className="h-4 w-4" /> Exportar Matriz
-        </Button>
       </div>
 
-      <div className="grid gap-6 grid-cols-1 md:grid-cols-3">
-         <Card className="bg-success/5 border-success/20">
-            <CardContent className="p-6">
-               <div className="flex justify-between items-start">
-                  <div>
-                     <p className="text-sm font-medium text-success mb-1">Personal en Regla</p>
-                     <h3 className="text-3xl font-bold text-success">385</h3>
-                  </div>
-                  <div className="p-3 bg-success/20 rounded-full"><CheckCircle className="h-6 w-6 text-success"/></div>
-               </div>
+      {/* Stats */}
+      <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
+        {[
+          {
+            label: "Infracciones Confirmadas",
+            value: loading ? null : confirmed.length,
+            icon: AlertTriangle,
+            color: "text-danger",
+            bg: "bg-danger/10",
+            border: "border-danger/20",
+          },
+          {
+            label: "Pendientes de Revisión",
+            value: loading ? null : pending.length,
+            icon: Clock,
+            color: "text-warning",
+            bg: "bg-warning/10",
+            border: "border-warning/20",
+          },
+          {
+            label: "Descartadas",
+            value: loading ? null : discarded.length,
+            icon: XCircle,
+            color: "text-success",
+            bg: "bg-success/10",
+            border: "border-success/20",
+          },
+          {
+            label: "En Apelación",
+            value: loading ? null : appealed.length,
+            icon: ShieldAlert,
+            color: "text-purple-400",
+            bg: "bg-purple-500/10",
+            border: "border-purple-500/20",
+          },
+        ].map(({ label, value, icon: Icon, color, bg, border }) => (
+          <Card key={label} className={`${bg} ${border} border`}>
+            <CardContent className="p-5">
+              <div className="flex justify-between items-start">
+                <div>
+                  <p className={`text-sm font-medium ${color} mb-1`}>{label}</p>
+                  {value === null
+                    ? <Loader2 className="h-6 w-6 animate-spin text-muted mt-2" />
+                    : <h3 className={`text-3xl font-bold ${color}`}>{value}</h3>
+                  }
+                </div>
+                <div className={`p-3 ${bg} rounded-full`}>
+                  <Icon className={`h-6 w-6 ${color}`} />
+                </div>
+              </div>
             </CardContent>
-         </Card>
-         <Card className="bg-danger/5 border-danger/20">
-            <CardContent className="p-6">
-               <div className="flex justify-between items-start">
-                  <div>
-                     <p className="text-sm font-medium text-danger mb-1">Brecha Formativa</p>
-                     <h3 className="text-3xl font-bold text-danger">42</h3>
-                  </div>
-                  <div className="p-3 bg-danger/20 rounded-full"><XCircle className="h-6 w-6 text-danger"/></div>
-               </div>
-            </CardContent>
-         </Card>
-         <Card className="bg-warning/5 border-warning/20">
-            <CardContent className="p-6">
-               <div className="flex justify-between items-start">
-                  <div>
-                     <p className="text-sm font-medium text-warning mb-1">Problemas de EPP</p>
-                     <h3 className="text-3xl font-bold text-warning">23</h3>
-                  </div>
-                  <div className="p-3 bg-warning/20 rounded-full"><AlertTriangle className="h-6 w-6 text-warning"/></div>
-               </div>
-            </CardContent>
-         </Card>
+          </Card>
+        ))}
       </div>
 
-      <Card className="bg-surface border-border shadow-sm">
-         <CardHeader className="border-b border-border/50 pb-4">
-            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-               <div>
-                  <CardTitle className="text-lg">Matriz de Cumplimiento General</CardTitle>
-                  <CardDescription>Detalle por empleado sobre capacitaciones.</CardDescription>
-               </div>
-               <div className="flex gap-2 w-full sm:w-auto">
-                  <div className="relative w-full sm:w-64">
-                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted" />
-                     <Input placeholder="Buscar empleado..." className="pl-9 bg-surface-secondary/50 border-border/50" />
-                  </div>
-                  <Button variant="outline" className="border-border/50 px-3">
-                     <Filter className="h-4 w-4" />
-                  </Button>
-               </div>
+      {/* Confirmed infractions table */}
+      <Card className="bg-surface border-border">
+        <CardHeader>
+          <CardTitle className="text-lg">Infracciones Confirmadas</CardTitle>
+          <CardDescription>
+            Incidentes que el Jefe de Seguridad revisó y aprobó como infracciones reales.
+            {!loading && ` Mostrando ${confirmed.length} de ${total ?? "?"} incidentes totales.`}
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="p-0">
+          {loading ? (
+            <div className="h-32 flex items-center justify-center"><Loader2 className="h-6 w-6 animate-spin text-muted" /></div>
+          ) : confirmed.length === 0 ? (
+            <div className="h-32 flex items-center justify-center">
+              <div className="text-center">
+                <CheckCircle className="h-10 w-10 text-success mx-auto mb-2" />
+                <p className="text-muted text-sm">No hay infracciones confirmadas</p>
+              </div>
             </div>
-         </CardHeader>
-         <CardContent className="p-0">
+          ) : (
             <div className="overflow-x-auto">
-               <table className="w-full text-sm text-left">
-                  <thead className="text-xs text-muted-foreground uppercase bg-surface-secondary/30 border-b border-border/50">
-                     <tr>
-                        <th className="px-6 py-4 font-semibold">Empleado</th>
-                        <th className="px-6 py-4 font-semibold">Departamento</th>
-                        <th className="px-6 py-4 font-semibold">Avance Cursos</th>
-                        <th className="px-6 py-4 font-semibold">Estado EPP</th>
-                        <th className="px-6 py-4 font-semibold">Última Auditoría</th>
-                        <th className="px-6 py-4 font-semibold text-right">Estado</th>
-                     </tr>
-                  </thead>
-                  <tbody className="divide-y divide-border/50">
-                     {COMPLIANCE_RECORDS.map((row, i) => (
-                        <tr key={i} className="hover:bg-surface-secondary/20 transition-colors">
-                           <td className="px-6 py-4">
-                              <div className="font-medium text-foreground">{row.name}</div>
-                              <div className="text-xs text-muted font-mono mt-0.5">{row.id}</div>
-                           </td>
-                           <td className="px-6 py-4 text-muted-foreground">{row.dept}</td>
-                           <td className="px-6 py-4">
-                              <div className="flex items-center gap-2">
-                                 <div className="w-16 h-2 bg-black/20 rounded-full overflow-hidden">
-                                    <div 
-                                       className={`h-full ${row.course === '100%' ? 'bg-success' : 'bg-warning'}`} 
-                                       style={{ width: row.course }}
-                                    ></div>
-                                 </div>
-                                 <span className="text-xs font-semibold">{row.course}</span>
-                              </div>
-                           </td>
-                           <td className="px-6 py-4">
-                              <Badge variant="outline" className={
-                                 row.epp === 'Aprobado' ? 'text-success border-success/30' : 
-                                 row.epp === 'Pendiente' ? 'text-warning border-warning/30' : 
-                                 'text-danger border-danger/30'
-                              }>
-                                 {row.epp}
-                              </Badge>
-                           </td>
-                           <td className="px-6 py-4 text-muted-foreground text-xs">{row.date}</td>
-                           <td className="px-6 py-4 text-right">
-                              {row.status === 'compliant' && <Badge className="bg-success/10 text-success hover:bg-success/20 border-0">Conforme</Badge>}
-                              {row.status === 'warning' && <Badge className="bg-warning/10 text-warning hover:bg-warning/20 border-0">Observado</Badge>}
-                              {row.status === 'non-compliant' && <Badge className="bg-danger/10 text-danger hover:bg-danger/20 border-0">No Conforme</Badge>}
-                           </td>
-                        </tr>
-                     ))}
-                  </tbody>
-               </table>
+              <table className="w-full text-sm">
+                <thead className="text-xs text-muted uppercase bg-surface-secondary/30 border-b border-border">
+                  <tr>
+                    <th className="px-5 py-3 text-left font-semibold">Tipo de Infracción</th>
+                    <th className="px-5 py-3 text-left font-semibold">Trabajador</th>
+                    <th className="px-5 py-3 text-left font-semibold">Fecha</th>
+                    <th className="px-5 py-3 text-right font-semibold">Apelación</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border/50">
+                  {confirmed.map(inc => (
+                    <tr key={inc.id} className="hover:bg-surface-secondary/20 transition-colors">
+                      <td className="px-5 py-3">
+                        <div className="flex items-center gap-2">
+                          <AlertTriangle className="h-4 w-4 text-danger shrink-0" />
+                          <span className="font-medium">{VIOLATION_LABELS[inc.violationType] ?? inc.violationType ?? "—"}</span>
+                        </div>
+                      </td>
+                      <td className="px-5 py-3 text-muted">{inc.workerName ?? inc.workerDni ?? "—"}</td>
+                      <td className="px-5 py-3 text-muted">{fmt(inc.createdAt ?? inc.timestamp)}</td>
+                      <td className="px-5 py-3 text-right">
+                        {inc.appealStatus
+                          ? <Badge className="bg-purple-500/10 text-purple-400 border-purple-500/30 text-[10px]">
+                              {inc.appealStatus === "PENDING" ? "En revisión" : inc.appealStatus === "APPROVED" ? "Anulada" : "Rechazada"}
+                            </Badge>
+                          : <Badge className="bg-surface-secondary text-muted border-border text-[10px]">Sin apelación</Badge>
+                        }
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
-         </CardContent>
+          )}
+        </CardContent>
       </Card>
 
+      {/* Pending table */}
+      {pending.length > 0 && (
+        <Card className="bg-surface border-border">
+          <CardHeader>
+            <CardTitle className="text-lg flex items-center gap-2">
+              <Clock className="h-5 w-5 text-warning" /> Pendientes de Revisión
+            </CardTitle>
+            <CardDescription>Incidentes detectados que aún no han sido revisados por el Jefe de Seguridad.</CardDescription>
+          </CardHeader>
+          <CardContent className="p-0">
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead className="text-xs text-muted uppercase bg-surface-secondary/30 border-b border-border">
+                  <tr>
+                    <th className="px-5 py-3 text-left font-semibold">Tipo</th>
+                    <th className="px-5 py-3 text-left font-semibold">Trabajador</th>
+                    <th className="px-5 py-3 text-left font-semibold">Fecha</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border/50">
+                  {pending.map(inc => (
+                    <tr key={inc.id} className="hover:bg-surface-secondary/20 transition-colors">
+                      <td className="px-5 py-3 font-medium">{VIOLATION_LABELS[inc.violationType] ?? inc.violationType ?? "—"}</td>
+                      <td className="px-5 py-3 text-muted">{inc.workerName ?? inc.workerDni ?? "—"}</td>
+                      <td className="px-5 py-3 text-muted">{fmt(inc.createdAt ?? inc.timestamp)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }

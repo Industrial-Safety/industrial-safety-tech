@@ -1,226 +1,297 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { 
-  TrendingUp, 
-  TrendingDown, 
-  ShieldCheck, 
-  AlertOctagon, 
-  Users, 
-  Award,
-  Activity
+import {
+  ShieldAlert, ShieldCheck, Activity, GraduationCap,
+  Package, Clock, CheckCircle, XCircle, Loader2, TrendingUp,
 } from "lucide-react";
-import { 
-  AreaChart, 
-  Area, 
-  XAxis, 
-  YAxis, 
-  CartesianGrid, 
-  Tooltip, 
-  ResponsiveContainer,
-  BarChart,
-  Bar,
-  Cell
-} from 'recharts';
+import {
+  PieChart, Pie, Cell, Tooltip, ResponsiveContainer,
+  BarChart, Bar, XAxis, YAxis, CartesianGrid,
+} from "recharts";
 
-// Mock Data
-const ACCIDENT_DATA = [
-  { month: 'Ene', nearMisses: 12, accidentes: 1 },
-  { month: 'Feb', nearMisses: 15, accidentes: 0 },
-  { month: 'Mar', nearMisses: 8, accidentes: 0 },
-  { month: 'Abr', nearMisses: 22, accidentes: 2 },
-  { month: 'May', nearMisses: 10, accidentes: 0 },
-  { month: 'Jun', nearMisses: 5, accidentes: 0 },
-];
+interface Incident {
+  id: string;
+  violationType: string;
+  status: string;
+  workerName?: string;
+  createdAt?: string;
+  timestamp?: string;
+}
 
-const COMPLIANCE_DATA = [
-  { name: 'Planta A', value: 92, color: '#10b981' },
-  { name: 'Almacén Central', value: 78, color: '#f59e0b' },
-  { name: 'Logística', value: 95, color: '#10b981' },
-  { name: 'Mantenimiento', value: 85, color: '#10b981' },
-  { name: 'Operaciones B', value: 64, color: '#ef4444' },
-];
+interface PurchaseRequest {
+  id: number;
+  categoria: string;
+  cantidad: number;
+  costoEstimado: number;
+  estado: "PENDIENTE" | "APROBADO" | "RECHAZADO";
+  fecha?: string;
+}
+
+const VIOLATION_LABELS: Record<string, string> = {
+  NO_CASCO: "Sin Casco",
+  NO_CHALECO: "Sin Chaleco",
+  NO_GUANTES: "Sin Guantes",
+  NO_LENTES: "Sin Lentes",
+  NO_BOTAS: "Sin Botas",
+  ZONA_PROHIBIDA: "Zona Prohibida",
+  DISTANCIA_INSEGURA: "Dist. Insegura",
+};
+
+const PIE_COLORS = ["#ef4444","#f59e0b","#8b5cf6","#3b82f6","#10b981","#ec4899","#06b6d4"];
+
+function normalizeStatus(s: string) {
+  return s?.toUpperCase() ?? "";
+}
 
 export default function GerenciaDashboard() {
+  const [incidents, setIncidents] = useState<Incident[]>([]);
+  const [totalIncidents, setTotalIncidents] = useState<number | null>(null);
+  const [purchases, setPurchases] = useState<PurchaseRequest[]>([]);
+  const [coursesCount, setCoursesCount] = useState<number | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    Promise.all([
+      fetch("/api/proxy/incidents?size=200").then(r => r.ok ? r.json() : { content: [], totalElements: 0 }),
+      fetch("/api/proxy/purchase/requests").then(r => r.ok ? r.json() : []),
+      fetch("/api/proxy/course").then(r => r.ok ? r.json() : []),
+    ]).then(([inc, pur, crs]) => {
+      const list: Incident[] = inc?.content ?? (Array.isArray(inc) ? inc : []);
+      setIncidents(list);
+      setTotalIncidents(inc?.totalElements ?? list.length);
+      setPurchases(Array.isArray(pur) ? pur : []);
+      setCoursesCount(Array.isArray(crs) ? crs.length : 0);
+    }).catch(() => {}).finally(() => setLoading(false));
+  }, []);
+
+  const pending   = incidents.filter(i => normalizeStatus(i.status) === "PENDING").length;
+  const approved  = incidents.filter(i => normalizeStatus(i.status) === "APPROVED").length;
+  const appealed  = incidents.filter(i => normalizeStatus(i.status) === "APPEALED").length;
+
+  const purPending  = purchases.filter(p => p.estado === "PENDIENTE").length;
+  const purApproved = purchases.filter(p => p.estado === "APROBADO");
+  const totalApprovedCost = purApproved.reduce((s, p) => s + (p.costoEstimado ?? 0), 0);
+
+  // Incidents by violationType
+  const byType = incidents.reduce<Record<string, number>>((acc, i) => {
+    const key = i.violationType ?? "OTRO";
+    acc[key] = (acc[key] ?? 0) + 1;
+    return acc;
+  }, {});
+  const typeData = Object.entries(byType)
+    .map(([type, count]) => ({ name: VIOLATION_LABELS[type] ?? type, value: count }))
+    .sort((a, b) => b.value - a.value);
+
+  // Purchase by estado for bar chart
+  const purBarData = [
+    { name: "Pendientes", value: purchases.filter(p => p.estado === "PENDIENTE").length, fill: "#f59e0b" },
+    { name: "Aprobadas",  value: purchases.filter(p => p.estado === "APROBADO").length,  fill: "#10b981" },
+    { name: "Rechazadas", value: purchases.filter(p => p.estado === "RECHAZADO").length, fill: "#ef4444" },
+  ];
+
+  const recentIncidents = incidents.slice(0, 8);
+
+  const statusBadge = (status: string) => {
+    const s = normalizeStatus(status);
+    if (s === "PENDING")  return <Badge className="bg-warning/10 text-warning border-warning/30">Pendiente</Badge>;
+    if (s === "APPROVED") return <Badge className="bg-success/10 text-success border-success/30">Aprobado</Badge>;
+    if (s === "REJECTED") return <Badge className="bg-danger/10 text-danger border-danger/30">Rechazado</Badge>;
+    if (s === "APPEALED") return <Badge className="bg-purple-500/10 text-purple-400 border-purple-500/30">Apelado</Badge>;
+    return <Badge variant="outline">{status}</Badge>;
+  };
+
+  const fmt = (iso?: string) => iso ? new Date(iso).toLocaleDateString("es-ES", { day: "numeric", month: "short" }) : "—";
+
   return (
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500 pb-8">
-      
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight mb-2 flex items-center gap-2">
-            Resumen Ejecutivo HSE
-          </h1>
-          <p className="text-muted">Vista gerencial de Salud, Seguridad y Medio Ambiente (Health, Safety & Environment).</p>
-        </div>
-        <div className="flex items-center gap-4 bg-surface/50 border border-border/50 px-4 py-2 rounded-lg backdrop-blur-sm">
-           <div className="text-right">
-              <p className="text-xs text-muted uppercase font-semibold">Días sin Accidentes</p>
-              <p className="text-2xl font-bold text-emerald-500">142</p>
-           </div>
-           <div className="h-10 w-10 rounded-full bg-emerald-500/10 flex items-center justify-center">
-              <ShieldCheck className="h-5 w-5 text-emerald-500" />
-           </div>
-        </div>
+
+      <div>
+        <h1 className="text-3xl font-bold tracking-tight mb-2">Resumen Ejecutivo HSE</h1>
+        <p className="text-muted">Vista gerencial de Salud, Seguridad y Medio Ambiente — datos en tiempo real.</p>
       </div>
 
-      {/* KPI Cards */}
-      <div className="grid gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
-        
-        <Card className="bg-surface border-border shadow-sm">
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-muted">Índice Accidentabilidad</CardTitle>
-            <Activity className="h-4 w-4 text-emerald-500" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">1.2%</div>
-            <p className="text-xs text-muted mt-1 flex items-center gap-1">
-              <TrendingDown className="h-3 w-3 text-emerald-500" />
-              <span className="text-emerald-500 font-medium">-0.4%</span> respecto al trimestre anterior
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card className="bg-surface border-border shadow-sm">
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-muted">Cumplimiento Global</CardTitle>
-            <Award className="h-4 w-4 text-emerald-500" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">87.5%</div>
-            <p className="text-xs text-muted mt-1 flex items-center gap-1">
-              <TrendingUp className="h-3 w-3 text-emerald-500" />
-              <span className="text-emerald-500 font-medium">+2.1%</span> de mejora en certificaciones
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card className="bg-surface border-border shadow-sm">
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-muted">Alertas Críticas (IA)</CardTitle>
-            <AlertOctagon className="h-4 w-4 text-danger" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-danger">14</div>
-            <p className="text-xs text-muted mt-1 flex items-center gap-1">
-              <TrendingUp className="h-3 w-3 text-danger" />
-              <span className="text-danger font-medium">+5</span> incidentes de EPP faltante esta semana
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card className="bg-surface border-border shadow-sm">
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-muted">Personal Capacitado</CardTitle>
-            <Users className="h-4 w-4 text-primary" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">412 / 450</div>
-            <div className="mt-2 h-1.5 w-full bg-surface-secondary rounded-full overflow-hidden">
-               <div className="h-full bg-primary" style={{ width: '91%' }}></div>
-            </div>
-          </CardContent>
-        </Card>
-
+      {/* KPIs */}
+      <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
+        {[
+          {
+            title: "Incidentes Totales",
+            value: loading ? null : totalIncidents,
+            icon: ShieldAlert,
+            color: "text-danger",
+            bg: "bg-danger/10",
+            sub: `${pending} pendientes de revisión`,
+          },
+          {
+            title: "Infracciones Confirmadas",
+            value: loading ? null : approved,
+            icon: ShieldCheck,
+            color: "text-warning",
+            bg: "bg-warning/10",
+            sub: `${appealed} en proceso de apelación`,
+          },
+          {
+            title: "Solicitudes de Compra",
+            value: loading ? null : purchases.length,
+            icon: Package,
+            color: "text-blue-400",
+            bg: "bg-blue-500/10",
+            sub: `${purPending} pendientes · S/ ${totalApprovedCost.toFixed(0)} aprobado`,
+          },
+          {
+            title: "Cursos en Plataforma",
+            value: loading ? null : coursesCount,
+            icon: GraduationCap,
+            color: "text-emerald-400",
+            bg: "bg-emerald-500/10",
+            sub: "Disponibles para capacitación",
+          },
+        ].map(kpi => (
+          <Card key={kpi.title} className="bg-surface border-border">
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <CardTitle className="text-sm font-medium text-muted">{kpi.title}</CardTitle>
+              <div className={`p-2 rounded-lg ${kpi.bg}`}>
+                <kpi.icon className={`h-4 w-4 ${kpi.color}`} />
+              </div>
+            </CardHeader>
+            <CardContent>
+              {kpi.value === null
+                ? <Loader2 className="h-7 w-7 animate-spin text-muted" />
+                : <div className={`text-2xl font-bold ${kpi.color}`}>{kpi.value}</div>
+              }
+              <p className="text-xs text-muted mt-1">{kpi.sub}</p>
+            </CardContent>
+          </Card>
+        ))}
       </div>
 
       <div className="grid gap-6 grid-cols-1 lg:grid-cols-2">
-        {/* Accident Rate Chart */}
-        <Card className="bg-surface border-border shadow-sm col-span-1 lg:col-span-1">
+
+        {/* Incidents by type */}
+        <Card className="bg-surface border-border">
           <CardHeader>
-            <CardTitle className="text-lg">Tendencia de Riesgos y Accidentes</CardTitle>
-            <CardDescription>Comparativa de cuasi-accidentes (Near Misses) vs. Accidentes con tiempo perdido.</CardDescription>
+            <CardTitle className="text-lg flex items-center gap-2">
+              <Activity className="h-5 w-5 text-danger" /> Tipos de Infracción Detectados
+            </CardTitle>
+            <CardDescription>Distribución de detecciones de IA por categoría de violación.</CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="h-[300px] w-full mt-4">
-              <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={ACCIDENT_DATA} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                  <defs>
-                    <linearGradient id="colorNearMiss" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#f59e0b" stopOpacity={0.3}/>
-                      <stop offset="95%" stopColor="#f59e0b" stopOpacity={0}/>
-                    </linearGradient>
-                    <linearGradient id="colorAccidente" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#ef4444" stopOpacity={0.3}/>
-                      <stop offset="95%" stopColor="#ef4444" stopOpacity={0}/>
-                    </linearGradient>
-                  </defs>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#334155" vertical={false} />
-                  <XAxis dataKey="month" stroke="#94a3b8" fontSize={12} tickLine={false} axisLine={false} />
-                  <YAxis stroke="#94a3b8" fontSize={12} tickLine={false} axisLine={false} />
-                  <Tooltip 
-                    contentStyle={{ backgroundColor: '#0f172a', borderColor: '#1e293b', borderRadius: '8px' }}
-                    itemStyle={{ color: '#e2e8f0' }}
-                  />
-                  <Area type="monotone" dataKey="nearMisses" name="Cuasi Accidentes" stroke="#f59e0b" strokeWidth={3} fillOpacity={1} fill="url(#colorNearMiss)" />
-                  <Area type="monotone" dataKey="accidentes" name="Accidentes" stroke="#ef4444" strokeWidth={3} fillOpacity={1} fill="url(#colorAccidente)" />
-                </AreaChart>
-              </ResponsiveContainer>
-            </div>
+            {loading ? (
+              <div className="h-64 flex items-center justify-center"><Loader2 className="h-6 w-6 animate-spin text-muted" /></div>
+            ) : typeData.length === 0 ? (
+              <div className="h-64 flex items-center justify-center text-muted text-sm">Sin incidentes registrados</div>
+            ) : (
+              <div className="flex gap-4 items-center h-64">
+                <ResponsiveContainer width="55%" height="100%">
+                  <PieChart>
+                    <Pie data={typeData} dataKey="value" cx="50%" cy="50%" innerRadius={55} outerRadius={85} paddingAngle={3}>
+                      {typeData.map((_, i) => <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />)}
+                    </Pie>
+                    <Tooltip
+                      contentStyle={{ backgroundColor: "var(--color-surface)", borderColor: "var(--color-border)", borderRadius: "8px" }}
+                      itemStyle={{ color: "var(--color-foreground)" }}
+                    />
+                  </PieChart>
+                </ResponsiveContainer>
+                <div className="flex-1 space-y-2">
+                  {typeData.slice(0, 6).map((d, i) => (
+                    <div key={d.name} className="flex items-center justify-between text-sm">
+                      <div className="flex items-center gap-2">
+                        <div className="h-2.5 w-2.5 rounded-full shrink-0" style={{ backgroundColor: PIE_COLORS[i % PIE_COLORS.length] }} />
+                        <span className="text-muted text-xs">{d.name}</span>
+                      </div>
+                      <span className="font-bold text-xs">{d.value}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </CardContent>
         </Card>
 
-        {/* Compliance by Area */}
-        <Card className="bg-surface border-border shadow-sm col-span-1 lg:col-span-1">
+        {/* Purchase requests status */}
+        <Card className="bg-surface border-border">
           <CardHeader>
-            <CardTitle className="text-lg">Nivel de Cumplimiento por Área</CardTitle>
-            <CardDescription>Porcentaje de empleados con certificaciones vigentes y EPP aprobado.</CardDescription>
+            <CardTitle className="text-lg flex items-center gap-2">
+              <Package className="h-5 w-5 text-blue-400" /> Solicitudes de Compra por Estado
+            </CardTitle>
+            <CardDescription>Resumen de solicitudes de logística enviadas a gerencia.</CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="h-[300px] w-full mt-4">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={COMPLIANCE_DATA} layout="vertical" margin={{ top: 0, right: 30, left: 40, bottom: 0 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#334155" horizontal={true} vertical={false} />
-                  <XAxis type="number" domain={[0, 100]} stroke="#94a3b8" fontSize={12} tickLine={false} axisLine={false} />
-                  <YAxis dataKey="name" type="category" stroke="#94a3b8" fontSize={12} tickLine={false} axisLine={false} />
-                  <Tooltip 
-                    cursor={{fill: '#1e293b'}}
-                    contentStyle={{ backgroundColor: '#0f172a', borderColor: '#1e293b', borderRadius: '8px' }}
-                  />
-                  <Bar dataKey="value" name="Cumplimiento %" radius={[0, 4, 4, 0]} barSize={20}>
-                    {COMPLIANCE_DATA.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={entry.color} />
-                    ))}
-                  </Bar>
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
+            {loading ? (
+              <div className="h-64 flex items-center justify-center"><Loader2 className="h-6 w-6 animate-spin text-muted" /></div>
+            ) : purchases.length === 0 ? (
+              <div className="h-64 flex items-center justify-center text-muted text-sm">Sin solicitudes registradas</div>
+            ) : (
+              <div className="h-64">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={purBarData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" vertical={false} />
+                    <XAxis dataKey="name" stroke="var(--color-muted)" fontSize={11} tickLine={false} axisLine={false} />
+                    <YAxis stroke="var(--color-muted)" fontSize={11} tickLine={false} axisLine={false} allowDecimals={false} />
+                    <Tooltip
+                      contentStyle={{ backgroundColor: "var(--color-surface)", borderColor: "var(--color-border)", borderRadius: "8px" }}
+                      itemStyle={{ color: "var(--color-foreground)" }}
+                    />
+                    <Bar dataKey="value" name="Solicitudes" radius={[4, 4, 0, 0]} maxBarSize={60}>
+                      {purBarData.map((d, i) => <Cell key={i} fill={d.fill} />)}
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>
 
-      {/* Actionable Insights */}
-      <Card className="bg-surface border-border shadow-sm">
-         <CardHeader>
-            <CardTitle className="text-lg">Puntos de Atención Prioritaria</CardTitle>
-            <CardDescription>Recomendaciones automáticas basadas en el análisis de datos recientes.</CardDescription>
-         </CardHeader>
-         <CardContent>
-            <div className="space-y-4">
-               <div className="flex items-start gap-4 p-4 rounded-lg bg-danger/5 border border-danger/20">
-                  <div className="mt-0.5 p-2 bg-danger/10 rounded-full">
-                     <AlertOctagon className="h-5 w-5 text-danger" />
-                  </div>
-                  <div>
-                     <h4 className="font-semibold text-danger">Bajo Cumplimiento en "Operaciones B"</h4>
-                     <p className="text-sm text-muted mt-1">El nivel de certificaciones vigentes cayó al 64%. Se requiere programar cursos de "Trabajo en Altura" y "Manejo de Montacargas" de inmediato.</p>
-                  </div>
-               </div>
-
-               <div className="flex items-start gap-4 p-4 rounded-lg bg-warning/5 border border-warning/20">
-                  <div className="mt-0.5 p-2 bg-warning/10 rounded-full">
-                     <TrendingUp className="h-5 w-5 text-warning" />
-                  </div>
-                  <div>
-                     <h4 className="font-semibold text-warning">Aumento de Cuasi Accidentes en "Almacén Central"</h4>
-                     <p className="text-sm text-muted mt-1">Se reportaron 22 near-misses en Abril. Analizar condiciones de iluminación y estado de estanterías.</p>
-                  </div>
-               </div>
+      {/* Recent incidents table */}
+      <Card className="bg-surface border-border">
+        <CardHeader>
+          <CardTitle className="text-lg flex items-center gap-2">
+            <TrendingUp className="h-5 w-5 text-warning" /> Incidentes Recientes
+          </CardTitle>
+          <CardDescription>Últimas detecciones registradas por el sistema de IA.</CardDescription>
+        </CardHeader>
+        <CardContent className="p-0">
+          {loading ? (
+            <div className="h-32 flex items-center justify-center"><Loader2 className="h-6 w-6 animate-spin text-muted" /></div>
+          ) : recentIncidents.length === 0 ? (
+            <div className="h-32 flex items-center justify-center">
+              <div className="text-center">
+                <CheckCircle className="h-10 w-10 text-success mx-auto mb-2" />
+                <p className="text-muted text-sm">Sin incidentes registrados</p>
+              </div>
             </div>
-         </CardContent>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead className="text-xs text-muted uppercase bg-surface-secondary/30 border-b border-border">
+                  <tr>
+                    <th className="px-5 py-3 text-left font-semibold">Tipo</th>
+                    <th className="px-5 py-3 text-left font-semibold">Trabajador</th>
+                    <th className="px-5 py-3 text-left font-semibold">Fecha</th>
+                    <th className="px-5 py-3 text-right font-semibold">Estado</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border/50">
+                  {recentIncidents.map(inc => (
+                    <tr key={inc.id} className="hover:bg-surface-secondary/20 transition-colors">
+                      <td className="px-5 py-3">
+                        <span className="font-medium">{VIOLATION_LABELS[inc.violationType] ?? inc.violationType ?? "—"}</span>
+                      </td>
+                      <td className="px-5 py-3 text-muted">{inc.workerName ?? "—"}</td>
+                      <td className="px-5 py-3 text-muted">{fmt(inc.createdAt ?? inc.timestamp)}</td>
+                      <td className="px-5 py-3 text-right">{statusBadge(inc.status)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </CardContent>
       </Card>
-
     </div>
   );
 }
